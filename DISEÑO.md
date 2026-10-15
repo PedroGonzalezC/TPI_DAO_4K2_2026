@@ -68,8 +68,8 @@ El plazo y la multa son decisiones de diseño porque el enunciado pide control d
 
 1. **Fábrica simple:** `FabricaPrestamos.crear` encapsula la elección entre `PrestamoLocal` y `PrestamoInterbibliotecario`. El caso de uso solicita un préstamo sin instanciar clases concretas. El tipo se persiste y determina si se necesita remito. No es el Factory Method formal con jerarquía de fábricas.
 2. **Observer:** `Remito` notifica cada transición a `HistorialRemito`, que guarda el evento en `historial_remitos`. La transición y el evento se confirman en la misma transacción; si falla, ambos se revierten. Este desacoplamiento permite agregar otros observadores sin modificar el remito.
-3. **State:** `Remito` reconstruye su objeto `EstadoRemito` a partir del estado persistido y le delega `avanzar`. `Creado`, `Empaquetado` y `Despachado` aceptan solo el siguiente estado; `Recibido` es terminal. La regla se aplica tanto a remitos de ida como de regreso y rechaza saltos sin modificar el historial.
-4. **DAO:** `CatalogoDAO`, `CirculacionDAO` y `ReportesDAO` contienen el SQL. `Biblioteca` valida y coordina; los DAO de circulación comparten la conexión de la operación para mantener atomicidad. `BaseDatos` administra el esquema, el cierre y `commit`/`rollback`.
+3. **State:** `Remito`, `Prestamo`, `Ejemplar` y `Reserva` reconstruyen su objeto de estado a partir del valor persistido y le delegan las transiciones. Los estados terminales rechazan avances y las demás clases aceptan solo los pasos del ciclo de vida definido.
+4. **DAO:** cada agregado tiene su DAO (`SedeDAO`, `SocioDAO`, `LibroDAO`, `EjemplarDAO`, `ReservaDAO`, `PrestamoDAO` y `RemitoDAO`); `CatalogoDAO` y `ReportesDAO` resuelven consultas de lectura. `Biblioteca` coordina los casos de uso y todos los DAO comparten la conexión de la operación para mantener atomicidad. `BaseDatos` administra el esquema, el cierre y `commit`/`rollback`.
 
 El [diagrama de clases](docs/DIAGRAMA_CLASES.md) es la referencia de la implementación actual, con una clase propia por archivo y la explicación del circuito de préstamos y remitos.
 

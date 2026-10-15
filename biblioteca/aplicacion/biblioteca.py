@@ -9,10 +9,19 @@ from ..persistencia.historial_remito import HistorialRemito
 from ..config import BASE_PREDETERMINADA
 from ..persistencia.reportes_dao import ReportesDAO
 from ..persistencia.catalogo_dao import CatalogoDAO
-from ..persistencia.circulacion_dao import CirculacionDAO
+from ..persistencia.ejemplar_dao import EjemplarDAO
+from ..persistencia.libro_dao import LibroDAO
+from ..persistencia.prestamo_dao import PrestamoDAO
+from ..persistencia.remito_dao import RemitoDAO
+from ..persistencia.reserva_dao import ReservaDAO
+from ..persistencia.sede_dao import SedeDAO
+from ..persistencia.socio_dao import SocioDAO
+from ..dominio.catalogo.ejemplar import Ejemplar
+from ..dominio.reservas.reserva import Reserva
+from .servicio_catalogo import ServicioCatalogo
+from .servicio_personas import ServicioPersonas
 from ..dominio.regla_negocio import ReglaNegocio
 from ..dominio.prestamos.fabrica_prestamos import FabricaPrestamos
-from ..dominio.remitos.remito import Remito
 
 
 class Biblioteca:
@@ -22,6 +31,8 @@ class Biblioteca:
     def __init__(self, ruta_db: str | Path = BASE_PREDETERMINADA):
         self.db = BaseDatos(ruta_db)
         self.reportes_dao = ReportesDAO(self.db)
+        self.catalogo = ServicioCatalogo()
+        self.personas = ServicioPersonas()
 
     @staticmethod
     def _ahora(fecha=None) -> datetime:
@@ -39,30 +50,16 @@ class Biblioteca:
             raise ReglaNegocio(f"{nombre} es obligatorio")
         return valor.strip()
 
-    @staticmethod
-    def _fila(con, tabla: str, id_: int):
-        return CatalogoDAO.obtener(con, tabla, id_)
-
-    @staticmethod
-    def _prestamo_desde_fila(fila):
-        """Reconstruye el contexto State a partir del préstamo persistido."""
-        return FabricaPrestamos.crear(
-            fila["socio_id"], fila["ejemplar_id"], fila["sede_origen_id"],
-            fila["sede_destino_id"], fila["estado"],
-        )
-
     @classmethod
     def _sede_activa(cls, con, id_: int):
-        sede = cls._fila(con, "sedes", id_)
-        if not sede["activa"]:
-            raise ReglaNegocio(f"La sede {id_} está dada de baja")
+        sede = SedeDAO.obtener(con, id_)
+        sede.exigir_activa()
         return sede
 
     @classmethod
     def _socio_habilitado(cls, con, id_: int):
-        socio = cls._fila(con, "socios", id_)
-        if not socio["habilitado"]:
-            raise ReglaNegocio(f"El socio {id_} está inhabilitado")
+        socio = SocioDAO.obtener(con, id_)
+        socio.exigir_habilitado()
         return socio
 
     @staticmethod
@@ -74,68 +71,34 @@ class Biblioteca:
 
     # Altas, modificaciones y bajas lógicas de datos maestros.
     def crear_sede(self, nombre, direccion, contacto, horarios):
-        valores = tuple(self._texto(v, n) for v, n in zip(
-            (nombre, direccion, contacto, horarios),
-            ("Nombre", "Dirección", "Contacto", "Horarios"),
-        ))
         with self.db.conexion() as con:
-            return self._crear_unico(lambda: CatalogoDAO.crear_sede(con, valores),
-                                     "Ya existe una sede con ese nombre")
+            return self.personas.crear_sede(con, nombre, direccion, contacto, horarios)
 
     def actualizar_sede(self, sede_id, *, direccion=None, contacto=None, horarios=None, activa=None):
-        if activa is not None and activa not in (True, False, 0, 1):
-            raise ReglaNegocio("El estado de la sede debe ser activo o baja")
         with self.db.conexion() as con:
-            sede = self._fila(con, "sedes", sede_id)
-            CatalogoDAO.actualizar_sede(con, sede_id,
-                self._texto(direccion, "Dirección") if direccion is not None else sede["direccion"],
-                self._texto(contacto, "Contacto") if contacto is not None else sede["contacto"],
-                self._texto(horarios, "Horarios") if horarios is not None else sede["horarios"],
-                int(activa) if activa is not None else sede["activa"])
+            self.personas.actualizar_sede(
+                con, sede_id, direccion=direccion, contacto=contacto, horarios=horarios, activa=activa
+            )
 
     def crear_socio(self, documento, nombre, email):
-        valores = (self._texto(documento, "Documento"), self._texto(nombre, "Nombre"),
-                   self._texto(email, "Email"))
         with self.db.conexion() as con:
-            return self._crear_unico(lambda: CatalogoDAO.crear_socio(con, valores),
-                                     "Ya existe un socio con ese documento")
+            return self.personas.crear_socio(con, documento, nombre, email)
 
     def actualizar_socio(self, socio_id, *, nombre=None, email=None, habilitado=None):
-        if habilitado is not None and habilitado not in (True, False, 0, 1):
-            raise ReglaNegocio("La habilitación del socio debe ser sí o no")
         with self.db.conexion() as con:
-            socio = self._fila(con, "socios", socio_id)
-            CatalogoDAO.actualizar_socio(con, socio_id,
-                self._texto(nombre, "Nombre") if nombre is not None else socio["nombre"],
-                self._texto(email, "Email") if email is not None else socio["email"],
-                int(habilitado) if habilitado is not None else socio["habilitado"])
+            self.personas.actualizar_socio(con, socio_id, nombre=nombre, email=email, habilitado=habilitado)
 
     def crear_libro(self, isbn, titulo, autor, anio=None):
-        if anio is not None and (not isinstance(anio, int) or anio <= 0):
-            raise ReglaNegocio("El año debe ser positivo")
-        valores = (self._texto(isbn, "ISBN"), self._texto(titulo, "Título"),
-                   self._texto(autor, "Autor"), anio)
         with self.db.conexion() as con:
-            return self._crear_unico(lambda: CatalogoDAO.crear_libro(con, valores),
-                                     "Ya existe un libro con ese ISBN")
+            return self.catalogo.crear_libro(con, isbn, titulo, autor, anio)
 
     def actualizar_libro(self, libro_id, *, titulo=None, autor=None, anio=None):
-        if anio is not None and (not isinstance(anio, int) or anio <= 0):
-            raise ReglaNegocio("El año debe ser positivo")
         with self.db.conexion() as con:
-            libro = self._fila(con, "libros", libro_id)
-            CatalogoDAO.actualizar_libro(con, libro_id,
-                self._texto(titulo, "Título") if titulo is not None else libro["titulo"],
-                self._texto(autor, "Autor") if autor is not None else libro["autor"],
-                anio if anio is not None else libro["anio"])
+            self.catalogo.actualizar_libro(con, libro_id, titulo=titulo, autor=autor, anio=anio)
 
     def crear_ejemplar(self, codigo, libro_id, sede_id):
         with self.db.conexion() as con:
-            self._fila(con, "libros", libro_id)
-            self._sede_activa(con, sede_id)
-            return self._crear_unico(lambda: CatalogoDAO.crear_ejemplar(
-                con, self._texto(codigo, "Código"), libro_id, sede_id),
-                "Ya existe un ejemplar con ese código")
+            return self.catalogo.crear_ejemplar(con, codigo, libro_id, sede_id)
 
     def listar(self, tabla: str):
         with self.db.conexion() as con:
@@ -143,44 +106,47 @@ class Biblioteca:
 
     def disponibilidad(self, sede_id=None):
         with self.db.conexion() as con:
-            if sede_id is not None:
-                self._fila(con, "sedes", sede_id)
-            return CatalogoDAO.disponibilidad(con, sede_id)
+            return self.catalogo.disponibilidad(con, sede_id)
 
     # Reserva en espera por libro y sede; la asignación respeta el orden de llegada.
     def reservar(self, socio_id, libro_id, sede_id, *, fecha=None):
         ahora = self._ahora(fecha)
         with self.db.conexion() as con:
             self._socio_habilitado(con, socio_id)
-            self._fila(con, "libros", libro_id)
+            LibroDAO.obtener(con, libro_id)
             self._sede_activa(con, sede_id)
+            reserva = Reserva(None, socio_id, libro_id, sede_id, ahora.isoformat())
             reserva_id = self._crear_unico(
-                lambda: CirculacionDAO.crear_reserva(con, socio_id, libro_id, sede_id, ahora.isoformat()),
+                lambda: ReservaDAO.crear(con, reserva),
                 "El socio ya tiene una reserva activa para ese libro y sede")
-            disponible = CirculacionDAO.primer_ejemplar_disponible(con, libro_id, sede_id)
+            disponible = EjemplarDAO.primero_disponible(con, libro_id, sede_id)
             if disponible:
-                self._asignar_reserva(con, disponible["id"])
+                self._asignar_reserva(con, disponible.id)
             return reserva_id
 
     def _asignar_reserva(self, con, ejemplar_id):
-        ejemplar = self._fila(con, "ejemplares", ejemplar_id)
-        if ejemplar["estado"] != "DISPONIBLE":
+        ejemplar = EjemplarDAO.obtener(con, ejemplar_id)
+        if ejemplar.estado != "DISPONIBLE":
             return
-        espera = CirculacionDAO.primera_reserva_en_espera(
-            con, ejemplar["libro_id"], ejemplar["sede_actual_id"])
+        espera = ReservaDAO.primera_en_espera(con, ejemplar.libro_id, ejemplar.sede_actual_id)
         if espera:
-            CirculacionDAO.asignar_reserva(con, espera["id"], ejemplar_id)
-            CirculacionDAO.cambiar_estado_ejemplar(con, ejemplar_id, "RESERVADO")
+            espera.asignar_ejemplar(ejemplar_id)
+            ejemplar.avanzar("RESERVADO")
+            ReservaDAO.guardar(con, espera)
+            EjemplarDAO.guardar(con, ejemplar)
 
     def cancelar_reserva(self, reserva_id):
         with self.db.conexion() as con:
-            reserva = self._fila(con, "reservas", reserva_id)
-            if reserva["estado"] not in ("EN_ESPERA", "ASIGNADA"):
+            reserva = ReservaDAO.obtener(con, reserva_id)
+            if reserva.estado not in ("EN_ESPERA", "ASIGNADA"):
                 raise ReglaNegocio("La reserva ya está cerrada")
-            CirculacionDAO.cambiar_estado_reserva(con, reserva_id, "CANCELADA")
-            if reserva["ejemplar_id"]:
-                CirculacionDAO.cambiar_estado_ejemplar(con, reserva["ejemplar_id"], "DISPONIBLE")
-                self._asignar_reserva(con, reserva["ejemplar_id"])
+            reserva.avanzar("CANCELADA")
+            ReservaDAO.guardar(con, reserva)
+            if reserva.ejemplar_id:
+                ejemplar = EjemplarDAO.obtener(con, reserva.ejemplar_id)
+                ejemplar.avanzar("DISPONIBLE")
+                EjemplarDAO.guardar(con, ejemplar)
+                self._asignar_reserva(con, reserva.ejemplar_id)
 
     def solicitar_prestamo(self, socio_id, ejemplar_id, sede_origen_id, sede_destino_id, *, fecha=None):
         ahora = self._ahora(fecha)
@@ -188,19 +154,21 @@ class Biblioteca:
             self._socio_habilitado(con, socio_id)
             self._sede_activa(con, sede_origen_id)
             self._sede_activa(con, sede_destino_id)
-            ejemplar = self._fila(con, "ejemplares", ejemplar_id)
-            if ejemplar["sede_pertenencia_id"] != sede_origen_id or ejemplar["sede_actual_id"] != sede_origen_id:
+            ejemplar = EjemplarDAO.obtener(con, ejemplar_id)
+            if ejemplar.sede_pertenencia_id != sede_origen_id or ejemplar.sede_actual_id != sede_origen_id:
                 raise ReglaNegocio("El ejemplar no pertenece o no se encuentra en la sede de origen")
-            if ejemplar["estado"] == "RESERVADO":
-                reserva = CirculacionDAO.reserva_del_ejemplar(con, ejemplar_id)
-                if reserva is None or reserva["socio_id"] != socio_id or reserva["sede_id"] != sede_destino_id:
+            if ejemplar.estado == "RESERVADO":
+                reserva = ReservaDAO.asignada_del_ejemplar(con, ejemplar_id)
+                if reserva is None or reserva.socio_id != socio_id or reserva.sede_id != sede_destino_id:
                     raise ReglaNegocio("El ejemplar está reservado para otro socio o sede de retiro")
-                CirculacionDAO.cambiar_estado_reserva(con, reserva["id"], "CUMPLIDA")
-            elif ejemplar["estado"] != "DISPONIBLE":
+                reserva.avanzar("CUMPLIDA")
+                ReservaDAO.guardar(con, reserva)
+            elif ejemplar.estado != "DISPONIBLE":
                 raise ReglaNegocio("El ejemplar no está disponible")
             prestamo = FabricaPrestamos.crear(socio_id, ejemplar_id, sede_origen_id, sede_destino_id)
-            prestamo_id = CirculacionDAO.crear_prestamo(con, prestamo, ahora.isoformat())
-            CirculacionDAO.cambiar_estado_ejemplar(con, ejemplar_id, "APARTADO")
+            prestamo_id = PrestamoDAO.crear(con, prestamo, ahora.isoformat())
+            ejemplar.avanzar("APARTADO")
+            EjemplarDAO.guardar(con, ejemplar)
             if prestamo.tipo == "INTERBIBLIOTECARIO":
                 self._crear_remito(con, prestamo_id, ejemplar_id, "IDA", sede_origen_id,
                                    sede_destino_id, ahora)
@@ -208,7 +176,7 @@ class Biblioteca:
 
     @staticmethod
     def _crear_remito(con, prestamo_id, ejemplar_id, tipo, origen, destino, fecha):
-        id_ = CirculacionDAO.crear_remito(
+        id_ = RemitoDAO.crear(
             con, prestamo_id, ejemplar_id, tipo, origen, destino, fecha.isoformat())
         HistorialRemito(con).actualizar(id_, "CREADO", fecha.isoformat(), "Remito generado")
         return id_
@@ -216,64 +184,64 @@ class Biblioteca:
     def avanzar_remito(self, remito_id, nuevo_estado, *, fecha=None, detalle=""):
         ahora = self._ahora(fecha)
         with self.db.conexion() as con:
-            fila = self._fila(con, "remitos", remito_id)
-            ultima = CirculacionDAO.ultima_fecha_remito(con, remito_id)
+            remito, fila = RemitoDAO.obtener(con, remito_id)
+            ultima = RemitoDAO.ultima_fecha(con, remito_id)
             if ahora < datetime.fromisoformat(ultima):
                 raise ReglaNegocio("El evento no puede preceder al estado anterior del remito")
             if nuevo_estado in {"EMPAQUETADO", "DESPACHADO"}:
                 self._sede_activa(con, fila["origen_id"])
                 self._sede_activa(con, fila["destino_id"])
-            remito = Remito(remito_id, fila["estado"])
             remito.suscribir(HistorialRemito(con))
             remito.avanzar(nuevo_estado, ahora, detalle)
-            CirculacionDAO.avanzar_remito(
-                con, remito_id, nuevo_estado,
+            RemitoDAO.guardar(
+                con, remito,
                 ahora.isoformat() if nuevo_estado == "RECIBIDO" else fila["recibido_en"])
             if nuevo_estado == "DESPACHADO":
-                CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], "EN_TRANSITO")
+                ejemplar = EjemplarDAO.obtener(con, fila["ejemplar_id"])
+                ejemplar.avanzar("EN_TRANSITO")
+                EjemplarDAO.guardar(con, ejemplar)
                 if fila["tipo"] == "IDA":
-                    prestamo = self._prestamo_desde_fila(
-                        self._fila(con, "prestamos", fila["prestamo_id"])
-                    )
+                    prestamo, _ = PrestamoDAO.obtener(con, fila["prestamo_id"])
                     prestamo.avanzar("EN_TRANSITO")
-                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], prestamo.estado)
+                    PrestamoDAO.guardar_estado(con, fila["prestamo_id"], prestamo)
             elif nuevo_estado == "RECIBIDO":
-                CirculacionDAO.ubicar_ejemplar(con, fila["ejemplar_id"], fila["destino_id"])
+                ejemplar = EjemplarDAO.obtener(con, fila["ejemplar_id"])
+                ejemplar.ubicar_en(fila["destino_id"])
                 if fila["tipo"] == "IDA":
-                    CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], "APARTADO")
-                    prestamo = self._prestamo_desde_fila(
-                        self._fila(con, "prestamos", fila["prestamo_id"])
-                    )
+                    ejemplar.avanzar("APARTADO")
+                    prestamo, _ = PrestamoDAO.obtener(con, fila["prestamo_id"])
                     prestamo.avanzar("LISTO")
-                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], prestamo.estado)
+                    PrestamoDAO.guardar_estado(con, fila["prestamo_id"], prestamo)
                 else:
-                    prestamo = self._fila(con, "prestamos", fila["prestamo_id"])
-                    estado = "DISPONIBLE" if prestamo["condicion_devolucion"] == "BUENO" else "EN_REVISION"
-                    CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], estado)
-                    if estado == "DISPONIBLE":
+                    _, prestamo_fila = PrestamoDAO.obtener(con, fila["prestamo_id"])
+                    estado = "DISPONIBLE" if prestamo_fila["condicion_devolucion"] == "BUENO" else "EN_REVISION"
+                    ejemplar.avanzar(estado)
+                    EjemplarDAO.guardar(con, ejemplar)
+                    if ejemplar.estado == "DISPONIBLE":
                         self._asignar_reserva(con, fila["ejemplar_id"])
+                if fila["tipo"] == "IDA":
+                    EjemplarDAO.guardar(con, ejemplar)
 
     def entregar_prestamo(self, prestamo_id, *, fecha=None):
         ahora = self._ahora(fecha)
         with self.db.conexion() as con:
-            prestamo = self._fila(con, "prestamos", prestamo_id)
-            requerido = "SOLICITADO" if prestamo["tipo"] == "LOCAL" else "LISTO"
-            if prestamo["estado"] != requerido:
+            prestamo, fila = PrestamoDAO.obtener(con, prestamo_id)
+            requerido = "SOLICITADO" if prestamo.tipo == "LOCAL" else "LISTO"
+            if prestamo.estado != requerido:
                 raise ReglaNegocio(f"El préstamo debe estar en estado {requerido} para entregarlo")
-            fecha_minima = prestamo["solicitado_en"]
-            if prestamo["tipo"] == "INTERBIBLIOTECARIO":
-                fecha_minima = CirculacionDAO.fecha_recepcion_ida(con, prestamo_id)
+            fecha_minima = fila["solicitado_en"]
+            if prestamo.tipo == "INTERBIBLIOTECARIO":
+                fecha_minima = RemitoDAO.fecha_recepcion_ida(con, prestamo_id)
             if ahora < datetime.fromisoformat(fecha_minima):
                 raise ReglaNegocio("La entrega no puede preceder a la solicitud o recepción")
-            self._socio_habilitado(con, prestamo["socio_id"])
-            self._sede_activa(con, prestamo["sede_destino_id"])
+            self._socio_habilitado(con, prestamo.socio_id)
+            self._sede_activa(con, prestamo.sede_destino_id)
             vence = (ahora + timedelta(days=self.PLAZO_DIAS)).date().isoformat()
-            prestamo_dominio = self._prestamo_desde_fila(prestamo)
-            prestamo_dominio.avanzar("ACTIVO")
-            CirculacionDAO.activar_prestamo(
-                con, prestamo_id, prestamo_dominio.estado, ahora.isoformat(), vence
-            )
-            CirculacionDAO.cambiar_estado_ejemplar(con, prestamo["ejemplar_id"], "PRESTADO")
+            prestamo.avanzar("ACTIVO")
+            PrestamoDAO.activar(con, prestamo_id, prestamo, ahora.isoformat(), vence)
+            ejemplar = EjemplarDAO.obtener(con, prestamo.ejemplar_id)
+            ejemplar.avanzar("PRESTADO")
+            EjemplarDAO.guardar(con, ejemplar)
             return vence
 
     def devolver_prestamo(self, prestamo_id, condicion="BUENO", *, fecha=None):
@@ -282,45 +250,45 @@ class Biblioteca:
         if condicion not in {"BUENO", "DANADO", "DESTRUIDO", "EXTRAVIADO"}:
             raise ReglaNegocio("Condición de devolución inválida")
         with self.db.conexion() as con:
-            prestamo = self._fila(con, "prestamos", prestamo_id)
-            if prestamo["estado"] != "ACTIVO":
+            prestamo, fila = PrestamoDAO.obtener(con, prestamo_id)
+            if prestamo.estado != "ACTIVO":
                 raise ReglaNegocio("Solo se puede devolver un préstamo activo")
-            if ahora < datetime.fromisoformat(prestamo["entregado_en"]):
+            if ahora < datetime.fromisoformat(fila["entregado_en"]):
                 raise ReglaNegocio("La devolución no puede preceder a la entrega")
-            atraso = max(0, (ahora.date() - date.fromisoformat(prestamo["vence_en"])).days)
+            atraso = max(0, (ahora.date() - date.fromisoformat(fila["vence_en"])).days)
             multa = atraso * self.MULTA_DIARIA_CENTAVOS
-            prestamo_dominio = self._prestamo_desde_fila(prestamo)
-            prestamo_dominio.avanzar("DEVUELTO")
-            CirculacionDAO.devolver_prestamo(
-                con, prestamo_id, prestamo_dominio.estado, ahora.isoformat(), condicion, multa
-            )
+            prestamo.avanzar("DEVUELTO")
+            PrestamoDAO.devolver(con, prestamo_id, prestamo, ahora.isoformat(), condicion, multa)
+            ejemplar = EjemplarDAO.obtener(con, prestamo.ejemplar_id)
             if condicion in {"DESTRUIDO", "EXTRAVIADO"}:
                 estado = "BAJA"
-            elif prestamo["tipo"] == "INTERBIBLIOTECARIO":
+            elif prestamo.tipo == "INTERBIBLIOTECARIO":
                 estado = "POR_RETORNAR"
-                self._crear_remito(con, prestamo_id, prestamo["ejemplar_id"], "REGRESO",
-                                   prestamo["sede_destino_id"], prestamo["sede_origen_id"], ahora)
+                self._crear_remito(con, prestamo_id, prestamo.ejemplar_id, "REGRESO",
+                                   prestamo.sede_destino_id, prestamo.sede_origen_id, ahora)
             else:
                 estado = "DISPONIBLE" if condicion == "BUENO" else "EN_REVISION"
-            CirculacionDAO.cambiar_estado_ejemplar(con, prestamo["ejemplar_id"], estado)
+            ejemplar.avanzar(estado)
+            EjemplarDAO.guardar(con, ejemplar)
             if estado == "DISPONIBLE":
-                self._asignar_reserva(con, prestamo["ejemplar_id"])
+                self._asignar_reserva(con, prestamo.ejemplar_id)
             return multa
 
     def cerrar_revision(self, ejemplar_id, apto: bool):
         with self.db.conexion() as con:
-            ejemplar = self._fila(con, "ejemplares", ejemplar_id)
-            if ejemplar["estado"] != "EN_REVISION":
+            ejemplar = EjemplarDAO.obtener(con, ejemplar_id)
+            if ejemplar.estado != "EN_REVISION":
                 raise ReglaNegocio("El ejemplar no está en revisión")
             estado = "DISPONIBLE" if apto else "BAJA"
-            CirculacionDAO.cambiar_estado_ejemplar(con, ejemplar_id, estado)
+            ejemplar.avanzar(estado)
+            EjemplarDAO.guardar(con, ejemplar)
             if apto:
                 self._asignar_reserva(con, ejemplar_id)
 
     def historial_remito(self, remito_id):
         with self.db.conexion() as con:
-            self._fila(con, "remitos", remito_id)
-            return CirculacionDAO.historial_remito(con, remito_id)
+            RemitoDAO.obtener(con, remito_id)
+            return RemitoDAO.historial(con, remito_id)
 
     def reportes(self, nombre: str, *, fecha=None):
         hoy = self._ahora(fecha).date().isoformat()

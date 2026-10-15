@@ -4,7 +4,9 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from biblioteca import Biblioteca, ReglaNegocio
+from biblioteca.dominio.catalogo.ejemplar import Ejemplar
 from biblioteca.dominio.prestamos.fabrica_prestamos import FabricaPrestamos
+from biblioteca.dominio.reservas.reserva import Reserva
 
 
 class TestBiblioteca(TestCase):
@@ -158,3 +160,21 @@ class TestBiblioteca(TestCase):
         interbibliotecario.avanzar("LISTO")
         interbibliotecario.avanzar("ACTIVO")
         assert interbibliotecario.estado == "ACTIVO"
+
+    def test_state_de_ejemplar_y_reserva_valida_sus_transiciones(self):
+        ejemplar = Ejemplar(1, "E-001", 1, 1, 1)
+        with self.assertRaises(ReglaNegocio):
+            ejemplar.avanzar("PRESTADO")
+        ejemplar.avanzar("RESERVADO")
+        ejemplar.avanzar("APARTADO")
+        ejemplar.avanzar("PRESTADO")
+        ejemplar.avanzar("EN_REVISION")
+        ejemplar.avanzar("DISPONIBLE")
+        assert ejemplar.estado == "DISPONIBLE"
+
+        reserva = Reserva(1, 1, 1, 1, "2026-10-01T10:00:00")
+        with self.assertRaises(ReglaNegocio):
+            reserva.avanzar("CUMPLIDA")
+        reserva.asignar_ejemplar(1)
+        reserva.avanzar("CUMPLIDA")
+        assert reserva.estado == "CUMPLIDA"

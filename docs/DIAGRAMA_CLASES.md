@@ -1,6 +1,6 @@
 # Diagrama de clases de la biblioteca
 
-Este diagrama representa **las clases Python que existen en el código**. Cada clase propia está declarada en un archivo con su nombre. Las sedes, socios, libros, ejemplares y reservas se almacenan como filas SQLite; sus relaciones de datos se muestran en el diagrama entidad relación de [`DISEÑO.md`](../DISEÑO.md). No se dibujan aquí como clases porque el programa no las implementa como tales.
+Este diagrama representa **las clases Python que existen en el código**. Las entidades se reconstruyen desde SQLite mediante sus DAO: una fila persistida no se entrega directamente a la lógica de negocio.
 
 ```mermaid
 classDiagram
@@ -33,13 +33,10 @@ classDiagram
         +crear_ejemplar()
         +disponibilidad()
     }
-    class CirculacionDAO {
-        +crear_reserva()
-        +crear_prestamo()
-        +crear_remito()
-        +avanzar_remito()
-        +historial_remito()
-    }
+    class EjemplarDAO
+    class ReservaDAO
+    class PrestamoDAO
+    class RemitoDAO
     class ReportesDAO {
         +consultar()
     }
@@ -83,6 +80,46 @@ classDiagram
     class Devuelto
     class Cancelado
 
+    class Libro
+    class Ejemplar {
+        +estado: str
+        +avanzar()
+        +ubicar_en()
+    }
+    class EstadoEjemplar {
+        <<abstract>>
+        +nombre: str
+        +avanzar()
+    }
+    class Disponible
+    class Reservado
+    class ApartadoEjemplar
+    class EnTransitoEjemplar
+    class PrestadoEjemplar
+    class PorRetornar
+    class EnRevision
+    class Baja
+    class Socio {
+        +exigir_habilitado()
+    }
+    class Sede {
+        +exigir_activa()
+    }
+    class Reserva {
+        +estado: str
+        +asignar_ejemplar()
+        +avanzar()
+    }
+    class EstadoReserva {
+        <<abstract>>
+        +nombre: str
+        +avanzar()
+    }
+    class EnEspera
+    class Asignada
+    class Cumplida
+    class CanceladaReserva
+
     class Remito {
         +id: int
         +estado: str
@@ -110,12 +147,15 @@ classDiagram
     ManejadorWeb --> Biblioteca : llama casos de uso
     Biblioteca *-- BaseDatos : abre transacciones
     Biblioteca *-- ReportesDAO : conserva instancia
-    Biblioteca ..> CatalogoDAO : consulta y actualiza
-    Biblioteca ..> CirculacionDAO : registra movimientos
+    Biblioteca ..> CatalogoDAO : listados y disponibilidad
+    Biblioteca ..> EjemplarDAO : reconstruye y guarda
+    Biblioteca ..> ReservaDAO : reconstruye y guarda
+    Biblioteca ..> PrestamoDAO : reconstruye y guarda
+    Biblioteca ..> RemitoDAO : reconstruye y guarda
     Biblioteca ..> FabricaPrestamos : crea préstamo
     Biblioteca ..> Remito : avanza
     Biblioteca ..> HistorialRemito : suscribe
-    CatalogoDAO ..> ReglaNegocio : valida existencia
+    CatalogoDAO ..> ReglaNegocio : valida listado
     ReportesDAO --> BaseDatos : consulta
     ReportesDAO ..> ReglaNegocio : reporte inválido
     FabricaPrestamos ..> PrestamoLocal : instancia
@@ -134,6 +174,20 @@ classDiagram
     EnTransito ..> Listo : siguiente
     Listo ..> Activo : siguiente
     Activo ..> Devuelto : siguiente
+    Ejemplar *-- EstadoEjemplar : estado vigente
+    EstadoEjemplar <|-- Disponible
+    EstadoEjemplar <|-- Reservado
+    EstadoEjemplar <|-- ApartadoEjemplar
+    EstadoEjemplar <|-- EnTransitoEjemplar
+    EstadoEjemplar <|-- PrestadoEjemplar
+    EstadoEjemplar <|-- PorRetornar
+    EstadoEjemplar <|-- EnRevision
+    EstadoEjemplar <|-- Baja
+    Reserva *-- EstadoReserva : estado vigente
+    EstadoReserva <|-- EnEspera
+    EstadoReserva <|-- Asignada
+    EstadoReserva <|-- Cumplida
+    EstadoReserva <|-- CanceladaReserva
     Remito *-- EstadoRemito : estado vigente
     Remito o-- ObservadorRemito : notifica
     ObservadorRemito <|.. HistorialRemito
@@ -150,18 +204,18 @@ classDiagram
 
 1. La consola (`biblioteca/__main__.py`) o `ManejadorWeb` pide una operación a `Biblioteca`.
 2. `Biblioteca` abre una conexión mediante `BaseDatos`, verifica las reglas y llama al DAO correspondiente con **esa misma conexión**.
-3. Al solicitar un préstamo, `FabricaPrestamos` crea `PrestamoLocal` o `PrestamoInterbibliotecario`. Ambos reconstruyen su `EstadoPrestamo` desde SQLite; el segundo genera un remito de ida.
+3. Al solicitar un préstamo, `FabricaPrestamos` crea `PrestamoLocal` o `PrestamoInterbibliotecario`. Ambos reconstruyen su `EstadoPrestamo` desde SQLite; `Ejemplar` avanza a `APARTADO` y el segundo genera un remito de ida.
 4. Al avanzar un remito, `Remito` delega la transición a su `EstadoRemito` actual. Solo se admite `Creado → Empaquetado → Despachado → Recibido`; esos cambios hacen avanzar también el préstamo interbibliotecario de `SOLICITADO → EN_TRANSITO → LISTO`.
-5. Al entregar o devolver, `Prestamo` delega en su `EstadoPrestamo`: un préstamo local sigue `SOLICITADO → ACTIVO → DEVUELTO`, y uno interbibliotecario sigue `SOLICITADO → EN_TRANSITO → LISTO → ACTIVO → DEVUELTO`.
+5. Al entregar o devolver, `Prestamo` delega en su `EstadoPrestamo`: un préstamo local sigue `SOLICITADO → ACTIVO → DEVUELTO`, y uno interbibliotecario sigue `SOLICITADO → EN_TRANSITO → LISTO → ACTIVO → DEVUELTO`. `Ejemplar` y `Reserva` también delegan en State sus cambios de ciclo de vida.
 6. `Remito` notifica a `HistorialRemito`, que guarda el evento dentro de la misma transacción. Si falla cualquier paso, `BaseDatos` revierte la operación.
 
 ## Ubicación de las clases
 
 | Capa | Archivos que contienen una clase cada uno |
 |---|---|
-| Dominio | `dominio/regla_negocio.py`; `dominio/prestamos/` (`prestamo.py`, préstamos concretos, fábrica y `estados_prestamo/`); `dominio/remitos/` (`remito.py`, observador y `estados_remito/`) |
-| Aplicación | `aplicacion/biblioteca.py` |
-| Persistencia | `persistencia/base_datos.py`, `catalogo_dao.py`, `circulacion_dao.py`, `reportes_dao.py`, `historial_remito.py` |
+| Dominio | `catalogo/` (`Libro`, `Ejemplar`, `estados_ejemplar/`), `personas/` (`Socio`, `Sede`), `reservas/` (`Reserva`, `estados_reserva/`), `prestamos/` y `remitos/` con sus carpetas de estados; `regla_negocio.py` |
+| Aplicación | `aplicacion/biblioteca.py` (fachada y coordinación), `servicio_catalogo.py`, `servicio_personas.py` |
+| Persistencia | Un DAO por agregado (`sede_dao.py`, `socio_dao.py`, `libro_dao.py`, `ejemplar_dao.py`, `reserva_dao.py`, `prestamo_dao.py`, `remito_dao.py`), más reportes, historial y transacciones |
 | Presentación | `presentacion/manejador_web.py` |
 
 Las rutas de la tabla son relativas al paquete `biblioteca/`. `config.py`, `persistencia/esquema.py`, `presentacion/web_actions.py`, `web.py`, `demo.py` y `__main__.py` contienen constantes o funciones, sin clases adicionales.
