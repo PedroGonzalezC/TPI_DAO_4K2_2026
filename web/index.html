@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183D3E">
+  <title>Red de Bibliotecas · Inicio</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="app-shell" id="app-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div><strong>Red de<br>Bibliotecas</strong><small>Sistema de circulación</small></div>
+      </div>
+      <nav class="navigation" id="navigation" aria-label="Áreas del sistema">
+        <a href="?vista=inicio" data-view="inicio"><span class="nav-symbol">⌂</span> Inicio</a>
+        <a href="?vista=prestamos" data-view="prestamos"><span class="nav-symbol">⇄</span> Préstamos</a>
+        <a href="?vista=remitos" data-view="remitos"><span class="nav-symbol">↗</span> Traslados</a>
+        <a href="?vista=catalogo" data-view="catalogo"><span class="nav-symbol">▤</span> Catálogo</a>
+        <a href="?vista=reservas" data-view="reservas"><span class="nav-symbol">◷</span> Reservas</a>
+        <a href="?vista=socios" data-view="socios"><span class="nav-symbol">♙</span> Socios</a>
+        <a href="?vista=sedes" data-view="sedes"><span class="nav-symbol">⌂</span> Sedes</a>
+        <a href="?vista=reportes" data-view="reportes"><span class="nav-symbol">▥</span> Reportes</a>
+      </nav>
+      <div class="sidebar-foot"><span class="connection-dot"></span><span>Servidor local<br><small>Datos guardados en SQLite</small></span></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <span class="topbar-kicker">DAO · Trabajo práctico integrador · Grupo N°34</span>
+        <span class="topbar-base" id="base-label" aria-label="Base de datos activa"></span>
+        <span class="topbar-date" id="today"></span>
+      </header>
+      <main id="main" tabindex="-1" aria-live="off"></main>
+      <footer class="footer">Red de Bibliotecas <span>·</span> Tema 1 <span>·</span> UTN FRC 2026</footer>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <div id="dialog-layer" class="dialog-layer" hidden>
+    <div class="dialog-backdrop"></div>
+    <section id="dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+      <div class="dialog-heading">
+        <div><p class="eyebrow" id="dialog-eyebrow">OPERACIÓN</p><h2 id="dialog-title"></h2></div>
+        <span id="dialog-close-slot"></span>
+      </div>
+      <p id="dialog-description" class="dialog-description"></p>
+      <div id="dialog-body"></div>
+    </section>
+  </div>
+</body>
+</html>
