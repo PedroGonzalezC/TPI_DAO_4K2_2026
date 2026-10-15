@@ -1,7 +1,7 @@
 """Estado terminal del remito."""
 
+from ...regla_negocio import ReglaNegocio
 from .estado_remito import EstadoRemito
-from .regla_negocio import ReglaNegocio
 
 
 class Recibido(EstadoRemito):

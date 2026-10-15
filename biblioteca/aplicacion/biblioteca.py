@@ -10,9 +10,9 @@ from ..config import BASE_PREDETERMINADA
 from ..persistencia.reportes_dao import ReportesDAO
 from ..persistencia.catalogo_dao import CatalogoDAO
 from ..persistencia.circulacion_dao import CirculacionDAO
-from ..dominio.fabrica_prestamos import FabricaPrestamos
 from ..dominio.regla_negocio import ReglaNegocio
-from ..dominio.remito import Remito
+from ..dominio.prestamos.fabrica_prestamos import FabricaPrestamos
+from ..dominio.remitos.remito import Remito
 
 
 class Biblioteca:
@@ -42,6 +42,14 @@ class Biblioteca:
     @staticmethod
     def _fila(con, tabla: str, id_: int):
         return CatalogoDAO.obtener(con, tabla, id_)
+
+    @staticmethod
+    def _prestamo_desde_fila(fila):
+        """Reconstruye el contexto State a partir del préstamo persistido."""
+        return FabricaPrestamos.crear(
+            fila["socio_id"], fila["ejemplar_id"], fila["sede_origen_id"],
+            fila["sede_destino_id"], fila["estado"],
+        )
 
     @classmethod
     def _sede_activa(cls, con, id_: int):
@@ -224,12 +232,20 @@ class Biblioteca:
             if nuevo_estado == "DESPACHADO":
                 CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], "EN_TRANSITO")
                 if fila["tipo"] == "IDA":
-                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], "EN_TRANSITO")
+                    prestamo = self._prestamo_desde_fila(
+                        self._fila(con, "prestamos", fila["prestamo_id"])
+                    )
+                    prestamo.avanzar("EN_TRANSITO")
+                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], prestamo.estado)
             elif nuevo_estado == "RECIBIDO":
                 CirculacionDAO.ubicar_ejemplar(con, fila["ejemplar_id"], fila["destino_id"])
                 if fila["tipo"] == "IDA":
                     CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], "APARTADO")
-                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], "LISTO")
+                    prestamo = self._prestamo_desde_fila(
+                        self._fila(con, "prestamos", fila["prestamo_id"])
+                    )
+                    prestamo.avanzar("LISTO")
+                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], prestamo.estado)
                 else:
                     prestamo = self._fila(con, "prestamos", fila["prestamo_id"])
                     estado = "DISPONIBLE" if prestamo["condicion_devolucion"] == "BUENO" else "EN_REVISION"
@@ -252,7 +268,11 @@ class Biblioteca:
             self._socio_habilitado(con, prestamo["socio_id"])
             self._sede_activa(con, prestamo["sede_destino_id"])
             vence = (ahora + timedelta(days=self.PLAZO_DIAS)).date().isoformat()
-            CirculacionDAO.activar_prestamo(con, prestamo_id, ahora.isoformat(), vence)
+            prestamo_dominio = self._prestamo_desde_fila(prestamo)
+            prestamo_dominio.avanzar("ACTIVO")
+            CirculacionDAO.activar_prestamo(
+                con, prestamo_id, prestamo_dominio.estado, ahora.isoformat(), vence
+            )
             CirculacionDAO.cambiar_estado_ejemplar(con, prestamo["ejemplar_id"], "PRESTADO")
             return vence
 
@@ -269,7 +289,11 @@ class Biblioteca:
                 raise ReglaNegocio("La devolución no puede preceder a la entrega")
             atraso = max(0, (ahora.date() - date.fromisoformat(prestamo["vence_en"])).days)
             multa = atraso * self.MULTA_DIARIA_CENTAVOS
-            CirculacionDAO.devolver_prestamo(con, prestamo_id, ahora.isoformat(), condicion, multa)
+            prestamo_dominio = self._prestamo_desde_fila(prestamo)
+            prestamo_dominio.avanzar("DEVUELTO")
+            CirculacionDAO.devolver_prestamo(
+                con, prestamo_id, prestamo_dominio.estado, ahora.isoformat(), condicion, multa
+            )
             if condicion in {"DESTRUIDO", "EXTRAVIADO"}:
                 estado = "BAJA"
             elif prestamo["tipo"] == "INTERBIBLIOTECARIO":

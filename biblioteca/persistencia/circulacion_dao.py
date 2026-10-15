@@ -64,16 +64,16 @@ class CirculacionDAO:
         con.execute("UPDATE prestamos SET estado=? WHERE id=?", (estado, prestamo_id))
 
     @staticmethod
-    def activar_prestamo(con, prestamo_id, entregado_en, vence_en):
-        con.execute("UPDATE prestamos SET estado='ACTIVO',entregado_en=?,vence_en=? WHERE id=?",
-                    (entregado_en, vence_en, prestamo_id))
+    def activar_prestamo(con, prestamo_id, estado, entregado_en, vence_en):
+        con.execute("UPDATE prestamos SET estado=?,entregado_en=?,vence_en=? WHERE id=?",
+                    (estado, entregado_en, vence_en, prestamo_id))
 
     @staticmethod
-    def devolver_prestamo(con, prestamo_id, devuelto_en, condicion, multa_centavos):
+    def devolver_prestamo(con, prestamo_id, estado, devuelto_en, condicion, multa_centavos):
         con.execute("""
-            UPDATE prestamos SET estado='DEVUELTO', devuelto_en=?, condicion_devolucion=?, multa_centavos=?
+            UPDATE prestamos SET estado=?, devuelto_en=?, condicion_devolucion=?, multa_centavos=?
             WHERE id=?
-        """, (devuelto_en, condicion, multa_centavos, prestamo_id))
+        """, (estado, devuelto_en, condicion, multa_centavos, prestamo_id))
 
     @staticmethod
     def crear_remito(con, prestamo_id, ejemplar_id, tipo, origen, destino, fecha):

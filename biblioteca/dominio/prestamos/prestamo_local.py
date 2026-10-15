@@ -1,11 +1,8 @@
-"""Préstamo cuya entrega ocurre en la sede de origen."""
-
-from dataclasses import dataclass
+"""Préstamo cuyo retiro se hace en la sede de pertenencia."""
 
 from .prestamo import Prestamo
 
 
-@dataclass(frozen=True)
 class PrestamoLocal(Prestamo):
     @property
     def tipo(self) -> str:

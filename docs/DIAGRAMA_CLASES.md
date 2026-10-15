@@ -57,7 +57,10 @@ classDiagram
         +ejemplar_id: int
         +sede_origen_id: int
         +sede_destino_id: int
+        +estado: str
         +tipo: str
+        -_estado: EstadoPrestamo
+        +avanzar()
     }
     class PrestamoLocal {
         +tipo: str
@@ -68,6 +71,17 @@ classDiagram
     class FabricaPrestamos {
         +crear() Prestamo
     }
+    class EstadoPrestamo {
+        <<abstract>>
+        +nombre: str
+        +avanzar()
+    }
+    class Solicitado
+    class EnTransito
+    class Listo
+    class Activo
+    class Devuelto
+    class Cancelado
 
     class Remito {
         +id: int
@@ -108,6 +122,18 @@ classDiagram
     FabricaPrestamos ..> PrestamoInterbibliotecario : instancia
     Prestamo <|-- PrestamoLocal
     Prestamo <|-- PrestamoInterbibliotecario
+    Prestamo *-- EstadoPrestamo : estado vigente
+    EstadoPrestamo <|-- Solicitado
+    EstadoPrestamo <|-- EnTransito
+    EstadoPrestamo <|-- Listo
+    EstadoPrestamo <|-- Activo
+    EstadoPrestamo <|-- Devuelto
+    EstadoPrestamo <|-- Cancelado
+    Solicitado ..> EnTransito : interbibliotecario
+    Solicitado ..> Activo : local
+    EnTransito ..> Listo : siguiente
+    Listo ..> Activo : siguiente
+    Activo ..> Devuelto : siguiente
     Remito *-- EstadoRemito : estado vigente
     Remito o-- ObservadorRemito : notifica
     ObservadorRemito <|.. HistorialRemito
@@ -124,15 +150,16 @@ classDiagram
 
 1. La consola (`biblioteca/__main__.py`) o `ManejadorWeb` pide una operación a `Biblioteca`.
 2. `Biblioteca` abre una conexión mediante `BaseDatos`, verifica las reglas y llama al DAO correspondiente con **esa misma conexión**.
-3. Al solicitar un préstamo, `FabricaPrestamos` crea `PrestamoLocal` o `PrestamoInterbibliotecario`. Este último genera un remito de ida.
-4. Al avanzar un remito, `Remito` delega la transición a su `EstadoRemito` actual. Solo se admite `Creado → Empaquetado → Despachado → Recibido`.
-5. `Remito` notifica a `HistorialRemito`, que guarda el evento dentro de la misma transacción. Si falla cualquier paso, `BaseDatos` revierte la operación.
+3. Al solicitar un préstamo, `FabricaPrestamos` crea `PrestamoLocal` o `PrestamoInterbibliotecario`. Ambos reconstruyen su `EstadoPrestamo` desde SQLite; el segundo genera un remito de ida.
+4. Al avanzar un remito, `Remito` delega la transición a su `EstadoRemito` actual. Solo se admite `Creado → Empaquetado → Despachado → Recibido`; esos cambios hacen avanzar también el préstamo interbibliotecario de `SOLICITADO → EN_TRANSITO → LISTO`.
+5. Al entregar o devolver, `Prestamo` delega en su `EstadoPrestamo`: un préstamo local sigue `SOLICITADO → ACTIVO → DEVUELTO`, y uno interbibliotecario sigue `SOLICITADO → EN_TRANSITO → LISTO → ACTIVO → DEVUELTO`.
+6. `Remito` notifica a `HistorialRemito`, que guarda el evento dentro de la misma transacción. Si falla cualquier paso, `BaseDatos` revierte la operación.
 
 ## Ubicación de las clases
 
 | Capa | Archivos que contienen una clase cada uno |
 |---|---|
-| Dominio | `dominio/prestamo.py`, `prestamo_local.py`, `prestamo_interbibliotecario.py`, `fabrica_prestamos.py`, `remito.py`, `estado_remito.py`, `creado.py`, `empaquetado.py`, `despachado.py`, `recibido.py`, `observador_remito.py`, `regla_negocio.py` |
+| Dominio | `dominio/regla_negocio.py`; `dominio/prestamos/` (`prestamo.py`, préstamos concretos, fábrica y `estados_prestamo/`); `dominio/remitos/` (`remito.py`, observador y `estados_remito/`) |
 | Aplicación | `aplicacion/biblioteca.py` |
 | Persistencia | `persistencia/base_datos.py`, `catalogo_dao.py`, `circulacion_dao.py`, `reportes_dao.py`, `historial_remito.py` |
 | Presentación | `presentacion/manejador_web.py` |

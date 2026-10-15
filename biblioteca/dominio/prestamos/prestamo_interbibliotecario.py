@@ -1,11 +1,8 @@
-"""Préstamo que requiere un remito entre sedes."""
-
-from dataclasses import dataclass
+"""Préstamo que requiere trasladar el ejemplar entre sedes."""
 
 from .prestamo import Prestamo
 
 
-@dataclass(frozen=True)
 class PrestamoInterbibliotecario(Prestamo):
     @property
     def tipo(self) -> str:

@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from biblioteca import Biblioteca, ReglaNegocio
+from biblioteca.dominio.prestamos.fabrica_prestamos import FabricaPrestamos
 
 
 class TestBiblioteca(TestCase):
@@ -141,3 +142,19 @@ class TestBiblioteca(TestCase):
         otra_instancia = Biblioteca(b.db.ruta)
         assert len(otra_instancia.historial_remito(remito)) == 4
         assert otra_instancia.listar("prestamos")[0]["estado"] == "ACTIVO"
+
+    def test_state_de_prestamos_valida_sus_transiciones(self):
+        local = FabricaPrestamos.crear(1, 1, 1, 1)
+        local.avanzar("ACTIVO")
+        local.avanzar("DEVUELTO")
+        assert local.estado == "DEVUELTO"
+        with self.assertRaises(ReglaNegocio):
+            local.avanzar("ACTIVO")
+
+        interbibliotecario = FabricaPrestamos.crear(1, 1, 1, 2)
+        with self.assertRaises(ReglaNegocio):
+            interbibliotecario.avanzar("ACTIVO")
+        interbibliotecario.avanzar("EN_TRANSITO")
+        interbibliotecario.avanzar("LISTO")
+        interbibliotecario.avanzar("ACTIVO")
+        assert interbibliotecario.estado == "ACTIVO"

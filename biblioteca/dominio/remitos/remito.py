@@ -3,12 +3,12 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from .creado import Creado
-from .empaquetado import Empaquetado
-from .despachado import Despachado
-from .recibido import Recibido
+from ..regla_negocio import ReglaNegocio
+from .estados_remito.creado import Creado
+from .estados_remito.despachado import Despachado
+from .estados_remito.empaquetado import Empaquetado
+from .estados_remito.recibido import Recibido
 from .observador_remito import ObservadorRemito
-from .regla_negocio import ReglaNegocio
 
 
 ESTADOS_REMITO = {clase.nombre: clase for clase in (Creado, Empaquetado, Despachado, Recibido)}

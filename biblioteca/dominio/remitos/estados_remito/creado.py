@@ -1,7 +1,7 @@
 """Estado inicial del remito."""
 
-from .estado_remito import EstadoRemito
 from .empaquetado import Empaquetado
+from .estado_remito import EstadoRemito
 
 
 class Creado(EstadoRemito):

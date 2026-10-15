@@ -1,12 +1,12 @@
-"""Contrato del patrón State para el remito."""
+"""Contrato State para las transiciones de un remito."""
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from .regla_negocio import ReglaNegocio
+from ...regla_negocio import ReglaNegocio
 
 if TYPE_CHECKING:
-    from .remito import Remito
+    from ..remito import Remito
 
 
 class EstadoRemito(ABC):

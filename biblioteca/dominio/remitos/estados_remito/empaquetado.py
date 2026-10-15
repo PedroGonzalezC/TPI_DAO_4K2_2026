@@ -1,7 +1,7 @@
 """Remito preparado para despacho."""
 
-from .estado_remito import EstadoRemito
 from .despachado import Despachado
+from .estado_remito import EstadoRemito
 
 
 class Empaquetado(EstadoRemito):
