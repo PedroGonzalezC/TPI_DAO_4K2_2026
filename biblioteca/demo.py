@@ -4,7 +4,8 @@ import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .servicio import Biblioteca
+from .aplicacion.biblioteca import Biblioteca
+from .config import DEMO_PREDETERMINADA
 
 
 def poblar(ruta):
@@ -51,7 +52,7 @@ def poblar(ruta):
 
 def main():
     parser = argparse.ArgumentParser(description="Crear base de muestra de la biblioteca")
-    parser.add_argument("--db", default="demo_biblioteca.db")
+    parser.add_argument("--db", default=DEMO_PREDETERMINADA)
     args = parser.parse_args()
     poblar(args.db)
     print(f"Base de demostración creada: {args.db}")

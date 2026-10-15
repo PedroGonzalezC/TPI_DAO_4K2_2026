@@ -3,12 +3,14 @@
 import argparse
 import json
 
-from .servicio import Biblioteca, ReglaNegocio
+from .aplicacion.biblioteca import Biblioteca
+from .dominio.regla_negocio import ReglaNegocio
+from .config import BASE_PREDETERMINADA
 
 
 def construir_parser():
     parser = argparse.ArgumentParser(description="Red de bibliotecas: préstamos interbibliotecarios")
-    parser.add_argument("--db", default="biblioteca.db", help="Archivo SQLite (por defecto biblioteca.db)")
+    parser.add_argument("--db", default=BASE_PREDETERMINADA, help="Archivo SQLite (por defecto biblioteca.db en la raíz del proyecto)")
     sub = parser.add_subparsers(dest="comando", required=True)
 
     def comando(nombre, *campos):

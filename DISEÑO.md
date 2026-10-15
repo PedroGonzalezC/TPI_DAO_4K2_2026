@@ -66,8 +66,14 @@ El plazo y la multa son decisiones de diseño porque el enunciado pide control d
 
 ## Patrones de diseño aplicados
 
-1. **Factory / fábrica simple:** `FabricaPrestamos.crear` encapsula la elección entre `PrestamoLocal` y `PrestamoInterbibliotecario`. El caso de uso solicita un préstamo sin instanciar clases concretas. El tipo se persiste y determina si se necesita remito.
-2. **Observer:** `Remito` notifica cada transición a `HistorialRemito`, que guarda el evento en `historial_remitos`. La transición y el evento se confirman en la misma transacción; si falla, ambos se revierten. Este desacoplamiento permite agregar otros observadores (por ejemplo, notificaciones) sin modificar el remito.
+1. **Fábrica simple:** `FabricaPrestamos.crear` encapsula la elección entre `PrestamoLocal` y `PrestamoInterbibliotecario`. El caso de uso solicita un préstamo sin instanciar clases concretas. El tipo se persiste y determina si se necesita remito. No es el Factory Method formal con jerarquía de fábricas.
+2. **Observer:** `Remito` notifica cada transición a `HistorialRemito`, que guarda el evento en `historial_remitos`. La transición y el evento se confirman en la misma transacción; si falla, ambos se revierten. Este desacoplamiento permite agregar otros observadores sin modificar el remito.
+3. **State:** `Remito` reconstruye su objeto `EstadoRemito` a partir del estado persistido y le delega `avanzar`. `Creado`, `Empaquetado` y `Despachado` aceptan solo el siguiente estado; `Recibido` es terminal. La regla se aplica tanto a remitos de ida como de regreso y rechaza saltos sin modificar el historial.
+4. **DAO:** `CatalogoDAO`, `CirculacionDAO` y `ReportesDAO` contienen el SQL. `Biblioteca` valida y coordina; los DAO de circulación comparten la conexión de la operación para mantener atomicidad. `BaseDatos` administra el esquema, el cierre y `commit`/`rollback`.
+
+El [diagrama de clases](docs/DIAGRAMA_CLASES.md) es la referencia de la implementación actual, con una clase propia por archivo y la explicación del circuito de préstamos y remitos.
+
+No se necesita Singleton para SQLite: cada operación usa una conexión corta y aislada. Tampoco hay construcción gradual que justifique Builder ni algoritmos alternativos reales para Strategy. El material de semana 10 presenta ambos patrones como opciones según el problema, no como obligación de implementarlos todos. La trazabilidad por PDF y página se detalla en `README.md`.
 
 ## Reportes implementados
 

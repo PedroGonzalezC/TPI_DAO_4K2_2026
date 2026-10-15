@@ -4,16 +4,24 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from .datos import BaseDatos, HistorialRemito
-from .modelo import FabricaPrestamos, ReglaNegocio, Remito
+from ..persistencia.base_datos import BaseDatos
+from ..persistencia.historial_remito import HistorialRemito
+from ..config import BASE_PREDETERMINADA
+from ..persistencia.reportes_dao import ReportesDAO
+from ..persistencia.catalogo_dao import CatalogoDAO
+from ..persistencia.circulacion_dao import CirculacionDAO
+from ..dominio.fabrica_prestamos import FabricaPrestamos
+from ..dominio.regla_negocio import ReglaNegocio
+from ..dominio.remito import Remito
 
 
 class Biblioteca:
     PLAZO_DIAS = 14
     MULTA_DIARIA_CENTAVOS = 10000  # $100 por día de atraso; decisión configurable.
 
-    def __init__(self, ruta_db: str | Path = "biblioteca.db"):
+    def __init__(self, ruta_db: str | Path = BASE_PREDETERMINADA):
         self.db = BaseDatos(ruta_db)
+        self.reportes_dao = ReportesDAO(self.db)
 
     @staticmethod
     def _ahora(fecha=None) -> datetime:
@@ -33,12 +41,7 @@ class Biblioteca:
 
     @staticmethod
     def _fila(con, tabla: str, id_: int):
-        if tabla not in {"sedes", "socios", "libros", "ejemplares", "reservas", "prestamos", "remitos"}:
-            raise ValueError("Tabla inválida")
-        fila = con.execute(f"SELECT * FROM {tabla} WHERE id=?", (id_,)).fetchone()
-        if fila is None:
-            raise ReglaNegocio(f"No existe {tabla[:-1]} con id {id_}")
-        return fila
+        return CatalogoDAO.obtener(con, tabla, id_)
 
     @classmethod
     def _sede_activa(cls, con, id_: int):
@@ -55,9 +58,9 @@ class Biblioteca:
         return socio
 
     @staticmethod
-    def _ejecutar_unico(con, sql, parametros, mensaje):
+    def _crear_unico(operacion, mensaje):
         try:
-            return con.execute(sql, parametros).lastrowid
+            return operacion()
         except sqlite3.IntegrityError as exc:
             raise ReglaNegocio(mensaje) from exc
 
@@ -68,38 +71,36 @@ class Biblioteca:
             ("Nombre", "Dirección", "Contacto", "Horarios"),
         ))
         with self.db.conexion() as con:
-            return self._ejecutar_unico(con,
-                "INSERT INTO sedes(nombre,direccion,contacto,horarios) VALUES(?,?,?,?)",
-                valores, "Ya existe una sede con ese nombre")
+            return self._crear_unico(lambda: CatalogoDAO.crear_sede(con, valores),
+                                     "Ya existe una sede con ese nombre")
 
     def actualizar_sede(self, sede_id, *, direccion=None, contacto=None, horarios=None, activa=None):
         if activa is not None and activa not in (True, False, 0, 1):
             raise ReglaNegocio("El estado de la sede debe ser activo o baja")
         with self.db.conexion() as con:
             sede = self._fila(con, "sedes", sede_id)
-            con.execute("UPDATE sedes SET direccion=?, contacto=?, horarios=?, activa=? WHERE id=?", (
+            CatalogoDAO.actualizar_sede(con, sede_id,
                 self._texto(direccion, "Dirección") if direccion is not None else sede["direccion"],
                 self._texto(contacto, "Contacto") if contacto is not None else sede["contacto"],
                 self._texto(horarios, "Horarios") if horarios is not None else sede["horarios"],
-                int(activa) if activa is not None else sede["activa"], sede_id))
+                int(activa) if activa is not None else sede["activa"])
 
     def crear_socio(self, documento, nombre, email):
         valores = (self._texto(documento, "Documento"), self._texto(nombre, "Nombre"),
                    self._texto(email, "Email"))
         with self.db.conexion() as con:
-            return self._ejecutar_unico(con,
-                "INSERT INTO socios(documento,nombre,email) VALUES(?,?,?)", valores,
-                "Ya existe un socio con ese documento")
+            return self._crear_unico(lambda: CatalogoDAO.crear_socio(con, valores),
+                                     "Ya existe un socio con ese documento")
 
     def actualizar_socio(self, socio_id, *, nombre=None, email=None, habilitado=None):
         if habilitado is not None and habilitado not in (True, False, 0, 1):
             raise ReglaNegocio("La habilitación del socio debe ser sí o no")
         with self.db.conexion() as con:
             socio = self._fila(con, "socios", socio_id)
-            con.execute("UPDATE socios SET nombre=?, email=?, habilitado=? WHERE id=?", (
+            CatalogoDAO.actualizar_socio(con, socio_id,
                 self._texto(nombre, "Nombre") if nombre is not None else socio["nombre"],
                 self._texto(email, "Email") if email is not None else socio["email"],
-                int(habilitado) if habilitado is not None else socio["habilitado"], socio_id))
+                int(habilitado) if habilitado is not None else socio["habilitado"])
 
     def crear_libro(self, isbn, titulo, autor, anio=None):
         if anio is not None and (not isinstance(anio, int) or anio <= 0):
@@ -107,48 +108,36 @@ class Biblioteca:
         valores = (self._texto(isbn, "ISBN"), self._texto(titulo, "Título"),
                    self._texto(autor, "Autor"), anio)
         with self.db.conexion() as con:
-            return self._ejecutar_unico(con,
-                "INSERT INTO libros(isbn,titulo,autor,anio) VALUES(?,?,?,?)", valores,
-                "Ya existe un libro con ese ISBN")
+            return self._crear_unico(lambda: CatalogoDAO.crear_libro(con, valores),
+                                     "Ya existe un libro con ese ISBN")
 
     def actualizar_libro(self, libro_id, *, titulo=None, autor=None, anio=None):
         if anio is not None and (not isinstance(anio, int) or anio <= 0):
             raise ReglaNegocio("El año debe ser positivo")
         with self.db.conexion() as con:
             libro = self._fila(con, "libros", libro_id)
-            con.execute("UPDATE libros SET titulo=?, autor=?, anio=? WHERE id=?", (
+            CatalogoDAO.actualizar_libro(con, libro_id,
                 self._texto(titulo, "Título") if titulo is not None else libro["titulo"],
                 self._texto(autor, "Autor") if autor is not None else libro["autor"],
-                anio if anio is not None else libro["anio"], libro_id))
+                anio if anio is not None else libro["anio"])
 
     def crear_ejemplar(self, codigo, libro_id, sede_id):
         with self.db.conexion() as con:
             self._fila(con, "libros", libro_id)
             self._sede_activa(con, sede_id)
-            return self._ejecutar_unico(con,
-                "INSERT INTO ejemplares(codigo,libro_id,sede_pertenencia_id,sede_actual_id) VALUES(?,?,?,?)",
-                (self._texto(codigo, "Código"), libro_id, sede_id, sede_id),
+            return self._crear_unico(lambda: CatalogoDAO.crear_ejemplar(
+                con, self._texto(codigo, "Código"), libro_id, sede_id),
                 "Ya existe un ejemplar con ese código")
 
     def listar(self, tabla: str):
-        if tabla not in {"sedes", "socios", "libros", "ejemplares", "reservas", "prestamos", "remitos"}:
-            raise ReglaNegocio("Listado desconocido")
         with self.db.conexion() as con:
-            return [dict(x) for x in con.execute(f"SELECT * FROM {tabla} ORDER BY id")]
+            return CatalogoDAO.listar(con, tabla)
 
     def disponibilidad(self, sede_id=None):
         with self.db.conexion() as con:
             if sede_id is not None:
                 self._fila(con, "sedes", sede_id)
-            return [dict(x) for x in con.execute("""
-                SELECT s.id sede_id, s.nombre sede, l.id libro_id, l.isbn, l.titulo,
-                       COUNT(e.id) ejemplares_totales,
-                       SUM(CASE WHEN e.estado='DISPONIBLE' THEN 1 ELSE 0 END) disponibles
-                FROM sedes s JOIN ejemplares e ON e.sede_actual_id=s.id
-                JOIN libros l ON l.id=e.libro_id
-                WHERE (? IS NULL OR s.id=?)
-                GROUP BY s.id,l.id ORDER BY s.nombre,l.titulo
-            """, (sede_id, sede_id))]
+            return CatalogoDAO.disponibilidad(con, sede_id)
 
     # Reserva en espera por libro y sede; la asignación respeta el orden de llegada.
     def reservar(self, socio_id, libro_id, sede_id, *, fecha=None):
@@ -157,14 +146,10 @@ class Biblioteca:
             self._socio_habilitado(con, socio_id)
             self._fila(con, "libros", libro_id)
             self._sede_activa(con, sede_id)
-            reserva_id = self._ejecutar_unico(con,
-                "INSERT INTO reservas(socio_id,libro_id,sede_id,creada_en) VALUES(?,?,?,?)",
-                (socio_id, libro_id, sede_id, ahora.isoformat()),
+            reserva_id = self._crear_unico(
+                lambda: CirculacionDAO.crear_reserva(con, socio_id, libro_id, sede_id, ahora.isoformat()),
                 "El socio ya tiene una reserva activa para ese libro y sede")
-            disponible = con.execute("""
-                SELECT id FROM ejemplares WHERE libro_id=? AND sede_actual_id=?
-                AND estado='DISPONIBLE' ORDER BY id LIMIT 1
-            """, (libro_id, sede_id)).fetchone()
+            disponible = CirculacionDAO.primer_ejemplar_disponible(con, libro_id, sede_id)
             if disponible:
                 self._asignar_reserva(con, disponible["id"])
             return reserva_id
@@ -173,26 +158,20 @@ class Biblioteca:
         ejemplar = self._fila(con, "ejemplares", ejemplar_id)
         if ejemplar["estado"] != "DISPONIBLE":
             return
-        espera = con.execute("""
-            SELECT r.id FROM reservas r JOIN socios so ON so.id=r.socio_id
-            JOIN sedes s ON s.id=r.sede_id WHERE r.libro_id=? AND r.sede_id=?
-            AND r.estado='EN_ESPERA' AND so.habilitado=1 AND s.activa=1
-            ORDER BY r.creada_en,r.id LIMIT 1
-        """, (ejemplar["libro_id"], ejemplar["sede_actual_id"])).fetchone()
+        espera = CirculacionDAO.primera_reserva_en_espera(
+            con, ejemplar["libro_id"], ejemplar["sede_actual_id"])
         if espera:
-            con.execute("UPDATE reservas SET estado='ASIGNADA', ejemplar_id=? WHERE id=?",
-                        (ejemplar_id, espera["id"]))
-            con.execute("UPDATE ejemplares SET estado='RESERVADO' WHERE id=?", (ejemplar_id,))
+            CirculacionDAO.asignar_reserva(con, espera["id"], ejemplar_id)
+            CirculacionDAO.cambiar_estado_ejemplar(con, ejemplar_id, "RESERVADO")
 
     def cancelar_reserva(self, reserva_id):
         with self.db.conexion() as con:
             reserva = self._fila(con, "reservas", reserva_id)
             if reserva["estado"] not in ("EN_ESPERA", "ASIGNADA"):
                 raise ReglaNegocio("La reserva ya está cerrada")
-            con.execute("UPDATE reservas SET estado='CANCELADA' WHERE id=?", (reserva_id,))
+            CirculacionDAO.cambiar_estado_reserva(con, reserva_id, "CANCELADA")
             if reserva["ejemplar_id"]:
-                con.execute("UPDATE ejemplares SET estado='DISPONIBLE' WHERE id=?",
-                            (reserva["ejemplar_id"],))
+                CirculacionDAO.cambiar_estado_ejemplar(con, reserva["ejemplar_id"], "DISPONIBLE")
                 self._asignar_reserva(con, reserva["ejemplar_id"])
 
     def solicitar_prestamo(self, socio_id, ejemplar_id, sede_origen_id, sede_destino_id, *, fecha=None):
@@ -205,21 +184,15 @@ class Biblioteca:
             if ejemplar["sede_pertenencia_id"] != sede_origen_id or ejemplar["sede_actual_id"] != sede_origen_id:
                 raise ReglaNegocio("El ejemplar no pertenece o no se encuentra en la sede de origen")
             if ejemplar["estado"] == "RESERVADO":
-                reserva = con.execute("""
-                    SELECT id, socio_id, sede_id FROM reservas WHERE ejemplar_id=? AND estado='ASIGNADA'
-                """, (ejemplar_id,)).fetchone()
+                reserva = CirculacionDAO.reserva_del_ejemplar(con, ejemplar_id)
                 if reserva is None or reserva["socio_id"] != socio_id or reserva["sede_id"] != sede_destino_id:
                     raise ReglaNegocio("El ejemplar está reservado para otro socio o sede de retiro")
-                con.execute("UPDATE reservas SET estado='CUMPLIDA' WHERE id=?", (reserva["id"],))
+                CirculacionDAO.cambiar_estado_reserva(con, reserva["id"], "CUMPLIDA")
             elif ejemplar["estado"] != "DISPONIBLE":
                 raise ReglaNegocio("El ejemplar no está disponible")
             prestamo = FabricaPrestamos.crear(socio_id, ejemplar_id, sede_origen_id, sede_destino_id)
-            prestamo_id = con.execute("""
-                INSERT INTO prestamos(socio_id,ejemplar_id,sede_origen_id,sede_destino_id,tipo,estado,solicitado_en)
-                VALUES(?,?,?,?,?,'SOLICITADO',?)
-            """, (socio_id, ejemplar_id, sede_origen_id, sede_destino_id,
-                  prestamo.tipo, ahora.isoformat())).lastrowid
-            con.execute("UPDATE ejemplares SET estado='APARTADO' WHERE id=?", (ejemplar_id,))
+            prestamo_id = CirculacionDAO.crear_prestamo(con, prestamo, ahora.isoformat())
+            CirculacionDAO.cambiar_estado_ejemplar(con, ejemplar_id, "APARTADO")
             if prestamo.tipo == "INTERBIBLIOTECARIO":
                 self._crear_remito(con, prestamo_id, ejemplar_id, "IDA", sede_origen_id,
                                    sede_destino_id, ahora)
@@ -227,10 +200,8 @@ class Biblioteca:
 
     @staticmethod
     def _crear_remito(con, prestamo_id, ejemplar_id, tipo, origen, destino, fecha):
-        id_ = con.execute("""
-            INSERT INTO remitos(prestamo_id,ejemplar_id,tipo,origen_id,destino_id,estado,creado_en)
-            VALUES(?,?,?,?,?,'CREADO',?)
-        """, (prestamo_id, ejemplar_id, tipo, origen, destino, fecha.isoformat())).lastrowid
+        id_ = CirculacionDAO.crear_remito(
+            con, prestamo_id, ejemplar_id, tipo, origen, destino, fecha.isoformat())
         HistorialRemito(con).actualizar(id_, "CREADO", fecha.isoformat(), "Remito generado")
         return id_
 
@@ -238,8 +209,7 @@ class Biblioteca:
         ahora = self._ahora(fecha)
         with self.db.conexion() as con:
             fila = self._fila(con, "remitos", remito_id)
-            ultima = con.execute("SELECT fecha FROM historial_remitos WHERE remito_id=? ORDER BY id DESC LIMIT 1",
-                                 (remito_id,)).fetchone()["fecha"]
+            ultima = CirculacionDAO.ultima_fecha_remito(con, remito_id)
             if ahora < datetime.fromisoformat(ultima):
                 raise ReglaNegocio("El evento no puede preceder al estado anterior del remito")
             if nuevo_estado in {"EMPAQUETADO", "DESPACHADO"}:
@@ -248,23 +218,22 @@ class Biblioteca:
             remito = Remito(remito_id, fila["estado"])
             remito.suscribir(HistorialRemito(con))
             remito.avanzar(nuevo_estado, ahora, detalle)
-            con.execute("UPDATE remitos SET estado=?, recibido_en=? WHERE id=?", (
-                nuevo_estado, ahora.isoformat() if nuevo_estado == "RECIBIDO" else fila["recibido_en"],
-                remito_id))
+            CirculacionDAO.avanzar_remito(
+                con, remito_id, nuevo_estado,
+                ahora.isoformat() if nuevo_estado == "RECIBIDO" else fila["recibido_en"])
             if nuevo_estado == "DESPACHADO":
-                con.execute("UPDATE ejemplares SET estado='EN_TRANSITO' WHERE id=?", (fila["ejemplar_id"],))
+                CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], "EN_TRANSITO")
                 if fila["tipo"] == "IDA":
-                    con.execute("UPDATE prestamos SET estado='EN_TRANSITO' WHERE id=?", (fila["prestamo_id"],))
+                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], "EN_TRANSITO")
             elif nuevo_estado == "RECIBIDO":
-                con.execute("UPDATE ejemplares SET sede_actual_id=? WHERE id=?",
-                            (fila["destino_id"], fila["ejemplar_id"]))
+                CirculacionDAO.ubicar_ejemplar(con, fila["ejemplar_id"], fila["destino_id"])
                 if fila["tipo"] == "IDA":
-                    con.execute("UPDATE ejemplares SET estado='APARTADO' WHERE id=?", (fila["ejemplar_id"],))
-                    con.execute("UPDATE prestamos SET estado='LISTO' WHERE id=?", (fila["prestamo_id"],))
+                    CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], "APARTADO")
+                    CirculacionDAO.cambiar_estado_prestamo(con, fila["prestamo_id"], "LISTO")
                 else:
                     prestamo = self._fila(con, "prestamos", fila["prestamo_id"])
                     estado = "DISPONIBLE" if prestamo["condicion_devolucion"] == "BUENO" else "EN_REVISION"
-                    con.execute("UPDATE ejemplares SET estado=? WHERE id=?", (estado, fila["ejemplar_id"]))
+                    CirculacionDAO.cambiar_estado_ejemplar(con, fila["ejemplar_id"], estado)
                     if estado == "DISPONIBLE":
                         self._asignar_reserva(con, fila["ejemplar_id"])
 
@@ -277,17 +246,14 @@ class Biblioteca:
                 raise ReglaNegocio(f"El préstamo debe estar en estado {requerido} para entregarlo")
             fecha_minima = prestamo["solicitado_en"]
             if prestamo["tipo"] == "INTERBIBLIOTECARIO":
-                fecha_minima = con.execute("""
-                    SELECT recibido_en FROM remitos WHERE prestamo_id=? AND tipo='IDA'
-                """, (prestamo_id,)).fetchone()["recibido_en"]
+                fecha_minima = CirculacionDAO.fecha_recepcion_ida(con, prestamo_id)
             if ahora < datetime.fromisoformat(fecha_minima):
                 raise ReglaNegocio("La entrega no puede preceder a la solicitud o recepción")
             self._socio_habilitado(con, prestamo["socio_id"])
             self._sede_activa(con, prestamo["sede_destino_id"])
             vence = (ahora + timedelta(days=self.PLAZO_DIAS)).date().isoformat()
-            con.execute("UPDATE prestamos SET estado='ACTIVO',entregado_en=?,vence_en=? WHERE id=?",
-                        (ahora.isoformat(), vence, prestamo_id))
-            con.execute("UPDATE ejemplares SET estado='PRESTADO' WHERE id=?", (prestamo["ejemplar_id"],))
+            CirculacionDAO.activar_prestamo(con, prestamo_id, ahora.isoformat(), vence)
+            CirculacionDAO.cambiar_estado_ejemplar(con, prestamo["ejemplar_id"], "PRESTADO")
             return vence
 
     def devolver_prestamo(self, prestamo_id, condicion="BUENO", *, fecha=None):
@@ -303,10 +269,7 @@ class Biblioteca:
                 raise ReglaNegocio("La devolución no puede preceder a la entrega")
             atraso = max(0, (ahora.date() - date.fromisoformat(prestamo["vence_en"])).days)
             multa = atraso * self.MULTA_DIARIA_CENTAVOS
-            con.execute("""
-                UPDATE prestamos SET estado='DEVUELTO', devuelto_en=?, condicion_devolucion=?, multa_centavos=?
-                WHERE id=?
-            """, (ahora.isoformat(), condicion, multa, prestamo_id))
+            CirculacionDAO.devolver_prestamo(con, prestamo_id, ahora.isoformat(), condicion, multa)
             if condicion in {"DESTRUIDO", "EXTRAVIADO"}:
                 estado = "BAJA"
             elif prestamo["tipo"] == "INTERBIBLIOTECARIO":
@@ -315,7 +278,7 @@ class Biblioteca:
                                    prestamo["sede_destino_id"], prestamo["sede_origen_id"], ahora)
             else:
                 estado = "DISPONIBLE" if condicion == "BUENO" else "EN_REVISION"
-            con.execute("UPDATE ejemplares SET estado=? WHERE id=?", (estado, prestamo["ejemplar_id"]))
+            CirculacionDAO.cambiar_estado_ejemplar(con, prestamo["ejemplar_id"], estado)
             if estado == "DISPONIBLE":
                 self._asignar_reserva(con, prestamo["ejemplar_id"])
             return multa
@@ -326,72 +289,15 @@ class Biblioteca:
             if ejemplar["estado"] != "EN_REVISION":
                 raise ReglaNegocio("El ejemplar no está en revisión")
             estado = "DISPONIBLE" if apto else "BAJA"
-            con.execute("UPDATE ejemplares SET estado=? WHERE id=?", (estado, ejemplar_id))
+            CirculacionDAO.cambiar_estado_ejemplar(con, ejemplar_id, estado)
             if apto:
                 self._asignar_reserva(con, ejemplar_id)
 
     def historial_remito(self, remito_id):
         with self.db.conexion() as con:
             self._fila(con, "remitos", remito_id)
-            return [dict(x) for x in con.execute(
-                "SELECT estado,fecha,detalle FROM historial_remitos WHERE remito_id=? ORDER BY id", (remito_id,))]
+            return CirculacionDAO.historial_remito(con, remito_id)
 
-    # Informes SQL. Todos devuelven filas serializables y pueden consumirse por CLI.
     def reportes(self, nombre: str, *, fecha=None):
         hoy = self._ahora(fecha).date().isoformat()
-        consultas = {
-            "activos_transito": ("""
-                SELECT p.id, l.titulo, e.codigo, so.nombre socio, p.tipo,
-                       CASE WHEN r.id IS NOT NULL THEN 'RETORNO_EN_TRANSITO' ELSE p.estado END estado,
-                       CASE WHEN r.id IS NOT NULL THEN d.nombre ELSE o.nombre END origen,
-                       CASE WHEN r.id IS NOT NULL THEN o.nombre ELSE d.nombre END destino,
-                       p.vence_en
-                FROM prestamos p JOIN ejemplares e ON e.id=p.ejemplar_id
-                JOIN libros l ON l.id=e.libro_id JOIN socios so ON so.id=p.socio_id
-                JOIN sedes o ON o.id=p.sede_origen_id JOIN sedes d ON d.id=p.sede_destino_id
-                LEFT JOIN remitos r ON r.prestamo_id=p.id AND r.tipo='REGRESO' AND r.estado='DESPACHADO'
-                WHERE p.estado IN ('ACTIVO','EN_TRANSITO','LISTO') OR r.id IS NOT NULL ORDER BY p.id
-            """, ()),
-            "vencidos_multas": ("""
-                SELECT p.id, so.nombre socio, l.titulo, p.vence_en,
-                       CAST(julianday(?) - julianday(p.vence_en) AS INTEGER) dias_atraso,
-                       CAST(julianday(?) - julianday(p.vence_en) AS INTEGER) * ? multa_estimada_centavos
-                FROM prestamos p JOIN socios so ON so.id=p.socio_id
-                JOIN ejemplares e ON e.id=p.ejemplar_id JOIN libros l ON l.id=e.libro_id
-                WHERE p.estado='ACTIVO' AND p.vence_en < ? ORDER BY dias_atraso DESC
-            """, (hoy, hoy, self.MULTA_DIARIA_CENTAVOS, hoy)),
-            "mas_solicitados": ("""
-                SELECT l.id, l.titulo, l.isbn, COUNT(*) solicitudes_interbibliotecarias
-                FROM prestamos p JOIN ejemplares e ON e.id=p.ejemplar_id
-                JOIN libros l ON l.id=e.libro_id
-                WHERE p.tipo='INTERBIBLIOTECARIO'
-                GROUP BY l.id ORDER BY solicitudes_interbibliotecarias DESC,l.titulo
-            """, ()),
-            "disponibilidad": ("""
-                SELECT s.nombre sede, l.titulo, COUNT(e.id) total,
-                       SUM(CASE WHEN e.estado='DISPONIBLE' THEN 1 ELSE 0 END) disponibles,
-                       SUM(CASE WHEN e.estado='EN_TRANSITO' THEN 1 ELSE 0 END) en_transito
-                FROM ejemplares e JOIN sedes s ON s.id=e.sede_actual_id
-                JOIN libros l ON l.id=e.libro_id GROUP BY s.id,l.id ORDER BY s.nombre,l.titulo
-            """, ()),
-            "logistica": ("""
-                SELECT COUNT(*) envios, SUM(CASE WHEN estado='RECIBIDO' THEN 1 ELSE 0 END) recibidos,
-                       SUM(CASE WHEN estado='DESPACHADO' THEN 1 ELSE 0 END) en_transito,
-                       ROUND(100.0 * SUM(CASE WHEN estado='RECIBIDO' THEN 1 ELSE 0 END) / NULLIF(COUNT(*),0),2) tasa_recepcion_pct,
-                       ROUND(AVG(CASE WHEN estado='RECIBIDO' THEN
-                         (julianday(recibido_en)-julianday(creado_en))*24 END),2) horas_promedio_trayecto
-                FROM remitos
-            """, ()),
-            "movimientos": ("""
-                SELECT o.nombre origen, d.nombre destino, r.tipo, COUNT(*) envios,
-                       ROUND(AVG(CASE WHEN r.estado='RECIBIDO' THEN
-                         (julianday(r.recibido_en)-julianday(r.creado_en))*24 END),2) horas_promedio
-                FROM remitos r JOIN sedes o ON o.id=r.origen_id JOIN sedes d ON d.id=r.destino_id
-                GROUP BY r.origen_id,r.destino_id,r.tipo ORDER BY envios DESC
-            """, ()),
-        }
-        if nombre not in consultas:
-            raise ReglaNegocio(f"Reporte desconocido: {nombre}")
-        sql, parametros = consultas[nombre]
-        with self.db.conexion() as con:
-            return [dict(fila) for fila in con.execute(sql, parametros)]
+        return self.reportes_dao.consultar(nombre, hoy, self.MULTA_DIARIA_CENTAVOS)

@@ -1,9 +1,4 @@
-"""Persistencia SQLite, restricciones de integridad e historial de remitos."""
-
-import sqlite3
-from contextlib import contextmanager
-from pathlib import Path
-
+"""Esquema SQLite y restricciones de integridad."""
 
 ESQUEMA = """
 PRAGMA foreign_keys = ON;
@@ -65,37 +60,3 @@ CREATE TABLE IF NOT EXISTS historial_remitos (
 CREATE INDEX IF NOT EXISTS idx_prestamos_estado ON prestamos(estado, vence_en);
 CREATE INDEX IF NOT EXISTS idx_reservas_espera ON reservas(libro_id, sede_id, estado, creada_en);
 """
-
-
-class HistorialRemito:
-    """Observer persistente: registra cada evento en la misma transacción."""
-
-    def __init__(self, conexion: sqlite3.Connection):
-        self.conexion = conexion
-
-    def actualizar(self, remito_id: int, estado: str, fecha: str, detalle: str) -> None:
-        self.conexion.execute(
-            "INSERT INTO historial_remitos(remito_id,estado,fecha,detalle) VALUES(?,?,?,?)",
-            (remito_id, estado, fecha, detalle),
-        )
-
-
-class BaseDatos:
-    def __init__(self, ruta: str | Path):
-        self.ruta = str(ruta)
-        with self.conexion() as con:
-            con.executescript(ESQUEMA)
-
-    @contextmanager
-    def conexion(self):
-        con = sqlite3.connect(self.ruta)
-        con.row_factory = sqlite3.Row
-        con.execute("PRAGMA foreign_keys = ON")
-        try:
-            yield con
-            con.commit()
-        except Exception:
-            con.rollback()
-            raise
-        finally:
-            con.close()

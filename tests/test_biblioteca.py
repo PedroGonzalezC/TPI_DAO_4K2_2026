@@ -33,6 +33,8 @@ class TestBiblioteca(TestCase):
             b.entregar_prestamo(p, fecha=t0)
         with self.assertRaises(ReglaNegocio):
             b.avanzar_remito(ida, "RECIBIDO", fecha=t0)
+        assert b.listar("remitos")[0]["estado"] == "CREADO"
+        assert [x["estado"] for x in b.historial_remito(ida)] == ["CREADO"]
         b.avanzar_remito(ida, "EMPAQUETADO", fecha=t0 + timedelta(hours=1))
         b.avanzar_remito(ida, "DESPACHADO", fecha=t0 + timedelta(hours=2))
         assert b.listar("ejemplares")[0]["estado"] == "EN_TRANSITO"
