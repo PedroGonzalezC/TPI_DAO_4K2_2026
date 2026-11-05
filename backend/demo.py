@@ -2,13 +2,12 @@
 
 import argparse
 from datetime import datetime, timedelta
-from pathlib import Path
-
-from .servicio import Biblioteca
+from .services.servicio import Biblioteca
+from .database.datos import resolver_ruta_base
 
 
 def poblar(ruta):
-    ruta = Path(ruta)
+    ruta = resolver_ruta_base(ruta)
     if ruta.exists() and ruta.stat().st_size:
         raise ValueError(f"La base ya existe y no se modificó: {ruta}")
     b = Biblioteca(ruta)
@@ -55,7 +54,7 @@ def main():
     args = parser.parse_args()
     poblar(args.db)
     print(f"Base de demostración creada: {args.db}")
-    print(f"Iniciá la interfaz con: python -m biblioteca.web --db {args.db}")
+    print(f"Iniciá la interfaz con: python -m backend.web --db {args.db}")
 
 
 if __name__ == "__main__":

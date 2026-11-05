@@ -16,6 +16,10 @@ colors:
   warning: "#986225"
   danger: "#A94646"
   focus: "#176DA4"
+  scrollbar-thumb: "#9EB1AC"
+  scrollbar-track: "#E7EFEC"
+  scrollbar-hover: "#718B84"
+  scrollbar-active: "#4C7069"
 typography:
   display:
     fontFamily: "Georgia, Cambria, serif"
@@ -57,7 +61,7 @@ Una mesa de circulación de biblioteca pública: fichas legibles, sellos de esta
 - **Firma memorable:** una banda de recorrido que muestra el movimiento entre sedes y sus estados.
 - **Contención:** formularios, tablas, errores y decisiones delicadas usan componentes familiares y textos directos.
 - **Anti-referencias:** panel SaaS de tarjetas con gradientes genéricos; sitio de lectura ornamental que dificulta operar; pantalla de consola disfrazada.
-- **Tokens:** este archivo es la fuente normativa. `web/styles.css` implementa las variables CSS con los mismos valores; `UX-CONTRACT.md` fija el comportamiento. No hay generador intermedio.
+- **Tokens:** este archivo es la fuente normativa. `frontend/css/styles.css` implementa las variables CSS con los mismos valores; `UX-CONTRACT.md` fija el comportamiento. No hay generador intermedio.
 
 ## Colors
 
@@ -69,7 +73,7 @@ El verde petróleo `primary` expresa la red y su trabajo estable. `background` e
 
 ## Layout
 
-Barra lateral persistente en escritorio y navegación horizontal desplazable en pantallas estrechas. El contenido no supera `page-max`. Las tablas tienen paginación de 10 registros y desborde horizontal propio en móvil; los formularios y diálogos usan altura natural con límites de la ventana. El encabezado, tablas y controles reservan espacio para carga y avisos para evitar saltos. Separación entre secciones de `section-gap`.
+Barra lateral persistente en escritorio y navegación horizontal desplazable en pantallas estrechas. El contenido no supera `page-max`. Las tablas tienen paginación (10 registros inicialmente, ajustable en `backend/configuracion.json`) y desborde horizontal propio en móvil; los formularios y diálogos usan altura natural con límites de la ventana. El encabezado, tablas y controles reservan espacio para carga y avisos para evitar saltos. Separación entre secciones de `section-gap`.
 
 ## Elevation & Depth
 
@@ -84,6 +88,8 @@ Controles y tarjetas usan radios moderados `sm`, `md`, `lg`. Los sellos de estad
 ### Foundational visual states
 
 Todo control incluye hover, foco visible, pulsado y deshabilitado. Los formularios muestran errores junto al campo y un resumen persistente cuando falla el servidor. La carga usa un indicador textual en un espacio estable. Los estados vacíos proponen la próxima acción; los resultados nulos de búsqueda permiten limpiar el filtro.
+
+Los tokens `colors.scrollbar-*` se implementan como `--scrollbar-*` en `:root` de `frontend/css/styles.css`. Las reglas globales estándar y WebKit consumen esas mismas variables para thumb, track, hover y active. Se conservaron los colores existentes al reunir sus valores repetidos.
 
 ### Buttons and actions
 

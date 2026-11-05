@@ -5,8 +5,19 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+TABLAS = {
+    "sedes": "sede", "socios": "socio", "libros": "libro",
+    "ejemplares": "ejemplar", "reservas": "reserva",
+    "prestamos": "préstamo", "remitos": "remito",
+}
+
+
 ESQUEMA = """
 PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS usuarios (
+ id INTEGER PRIMARY KEY, nombre TEXT NOT NULL UNIQUE,
+ salt BLOB NOT NULL, clave_hash BLOB NOT NULL, rol TEXT NOT NULL CHECK(rol IN ('PERSONAL'))
+);
 CREATE TABLE IF NOT EXISTS sedes (
  id INTEGER PRIMARY KEY, nombre TEXT NOT NULL UNIQUE, direccion TEXT NOT NULL,
  contacto TEXT NOT NULL, horarios TEXT NOT NULL, activa INTEGER NOT NULL DEFAULT 1 CHECK(activa IN (0,1))
@@ -67,22 +78,17 @@ CREATE INDEX IF NOT EXISTS idx_reservas_espera ON reservas(libro_id, sede_id, es
 """
 
 
-class HistorialRemito:
-    """Observer persistente: registra cada evento en la misma transacción."""
-
-    def __init__(self, conexion: sqlite3.Connection):
-        self.conexion = conexion
-
-    def actualizar(self, remito_id: int, estado: str, fecha: str, detalle: str) -> None:
-        self.conexion.execute(
-            "INSERT INTO historial_remitos(remito_id,estado,fecha,detalle) VALUES(?,?,?,?)",
-            (remito_id, estado, fecha, detalle),
-        )
+def resolver_ruta_base(ruta: str | Path) -> Path:
+    """Conserva los nombres habituales; las rutas explícitas se respetan."""
+    ruta = Path(ruta)
+    if not ruta.is_absolute() and ruta.parent == Path('.') and ruta.name in {'biblioteca.db', 'demo_biblioteca.db'} and not ruta.exists():
+        return Path(__file__).resolve().parent / ruta.name
+    return ruta
 
 
 class BaseDatos:
     def __init__(self, ruta: str | Path):
-        self.ruta = str(ruta)
+        self.ruta = str(resolver_ruta_base(ruta))
         with self.conexion() as con:
             con.executescript(ESQUEMA)
 

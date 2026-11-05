@@ -1,0 +1,6 @@
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.login-card { width: min(100%, 440px); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px; }
+.login-card h1 { font-family: var(--font-display); font-size: 2rem; margin: 8px 0; }
+.login-card > p:not(.eyebrow) { color: var(--ink-muted); margin-bottom: 24px; }
+.login-card form { display: grid; gap: 18px; }
+.login-card .button { width: 100%; }

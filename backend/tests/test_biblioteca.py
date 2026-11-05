@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from biblioteca import Biblioteca, ReglaNegocio
+from backend import Biblioteca, ReglaNegocio
 
 
 class TestBiblioteca(TestCase):
@@ -81,6 +81,22 @@ class TestBiblioteca(TestCase):
         assert b.entregar_prestamo(p)
         with self.assertRaises(ReglaNegocio):
             b.entregar_prestamo(p)
+
+    def test_edicion_parcial_conserva_datos_y_rechaza_campos_vacios(self):
+        b, origen, destino, socio, libro, ejemplar = self.red
+        b.actualizar_sede(origen, contacto="  999  ")
+        b.actualizar_socio(socio, email="nuevo@example.com")
+        b.actualizar_libro(libro, anio=2025)
+        sede = b.listar("sedes")[0]
+        self.assertEqual((sede["contacto"], sede["direccion"], sede["activa"]), ("999", "Calle 1", 1))
+        self.assertEqual(b.listar("socios")[0]["nombre"], "Ana")
+        self.assertEqual(b.listar("libros")[0]["titulo"], "Objetos")
+        b.actualizar_sede(origen)  # Una edición sin cambios también valida que el registro exista.
+        with self.assertRaises(ReglaNegocio):
+            b.actualizar_socio(socio, nombre=" ", email="no-guardar@example.com")
+        self.assertEqual(b.listar("socios")[0]["email"], "nuevo@example.com")
+        with self.assertRaises(ReglaNegocio):
+            b.actualizar_libro(999)
 
 
     def test_reservas_por_orden_y_revision(self):

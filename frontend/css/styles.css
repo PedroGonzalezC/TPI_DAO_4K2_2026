@@ -12,6 +12,10 @@
   --warning: #986225;
   --danger: #A94646;
   --focus: #176DA4;
+  --scrollbar-thumb: #9EB1AC;
+  --scrollbar-track: #E7EFEC;
+  --scrollbar-hover: #718B84;
+  --scrollbar-active: #4C7069;
   --radius-sm: .4rem;
   --radius-md: .75rem;
   --radius-lg: 1.2rem;
@@ -21,18 +25,18 @@
   --font-body: "Segoe UI", Aptos, system-ui, sans-serif;
   --font-utility: Consolas, "Cascadia Code", ui-monospace, monospace;
   color-scheme: light;
-  scrollbar-color: #9eb1ac #e7efec;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   scrollbar-width: thin;
 }
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--background); color: var(--ink); font: 15px/1.5 var(--font-body); }
-body, body * { scrollbar-color: #9eb1ac #e7efec; scrollbar-width: thin; }
+body, body * { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); scrollbar-width: thin; }
 ::-webkit-scrollbar { width: 11px; height: 11px; }
-::-webkit-scrollbar-track { background: #e7efec; }
-::-webkit-scrollbar-thumb { background: #9eb1ac; border: 2px solid #e7efec; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #718b84; }
-::-webkit-scrollbar-thumb:active { background: #4c7069; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border: 2px solid var(--scrollbar-track); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+::-webkit-scrollbar-thumb:active { background: var(--scrollbar-active); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .48; }

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#183D3E">
   <title>Red de Bibliotecas · Inicio</title>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script type="module" src="/js/app.js"></script>
 </head>
 <body>
   <div class="app-shell" id="app-shell">
@@ -15,16 +15,7 @@
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <div><strong>Red de<br>Bibliotecas</strong><small>Sistema de circulación</small></div>
       </div>
-      <nav class="navigation" id="navigation" aria-label="Áreas del sistema">
-        <a href="?vista=inicio" data-view="inicio"><span class="nav-symbol">⌂</span> Inicio</a>
-        <a href="?vista=prestamos" data-view="prestamos"><span class="nav-symbol">⇄</span> Préstamos</a>
-        <a href="?vista=remitos" data-view="remitos"><span class="nav-symbol">↗</span> Traslados</a>
-        <a href="?vista=catalogo" data-view="catalogo"><span class="nav-symbol">▤</span> Catálogo</a>
-        <a href="?vista=reservas" data-view="reservas"><span class="nav-symbol">◷</span> Reservas</a>
-        <a href="?vista=socios" data-view="socios"><span class="nav-symbol">♙</span> Socios</a>
-        <a href="?vista=sedes" data-view="sedes"><span class="nav-symbol">⌂</span> Sedes</a>
-        <a href="?vista=reportes" data-view="reportes"><span class="nav-symbol">▥</span> Reportes</a>
-      </nav>
+      <nav class="navigation" id="navigation" aria-label="Áreas del sistema"></nav>
       <div class="sidebar-foot"><span class="connection-dot"></span><span>Servidor local<br><small>Datos guardados en SQLite</small></span></div>
     </aside>
     <div class="workspace">
@@ -32,6 +23,7 @@
         <span class="topbar-kicker">DAO · Trabajo práctico integrador · Grupo N°34</span>
         <span class="topbar-base" id="base-label" aria-label="Base de datos activa"></span>
         <span class="topbar-date" id="today"></span>
+        <form id="logout-form" action="/api/logout" method="post" novalidate><button type="submit" class="button button-outline button-small">Cerrar sesión</button></form>
       </header>
       <main id="main" tabindex="-1" aria-live="off"></main>
       <footer class="footer">Red de Bibliotecas <span>·</span> Tema 1 <span>·</span> UTN FRC 2026</footer>

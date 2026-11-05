@@ -2,7 +2,7 @@
 
 ## Alcance y fuentes
 
-Se implementaron los ocho procesos obligatorios y todas las validaciones indicadas en `Tema1 - Biblioteca.pdf`. Se siguieron los apuntes de la cátedra sobre clases, patrones de diseño, pruebas, SQLite y objetos de acceso a datos. No se asumieron requisitos de interfaz web ni de despliegue porque el enunciado no los establece.
+Se implementaron los ocho procesos obligatorios y todas las validaciones indicadas en `Tema1 - Biblioteca.pdf`. Se siguieron los apuntes de la cátedra sobre clases, patrones de diseño, pruebas, SQLite y objetos de acceso a datos. A pedido del proyecto se incorporaron una interfaz web y una API local con FastAPI.
 
 ## Modelo conceptual
 
@@ -62,12 +62,20 @@ Estados del ejemplar: `DISPONIBLE`, `APARTADO`, `RESERVADO`, `PRESTADO`, `EN_TRA
 | Reservas | Cola por libro y sede; se asigna el primer ejemplar disponible a la primera reserva vigente de socio habilitado. Solo el titular puede solicitar ese ejemplar. |
 | Condición de devolución | `BUENO`, `DANADO`, `DESTRUIDO` o `EXTRAVIADO`. |
 
-El plazo y la multa son decisiones de diseño porque el enunciado pide control de vencimientos y reportes de multas, pero no indica valores. Están centralizados en `Biblioteca.PLAZO_DIAS` y `Biblioteca.MULTA_DIARIA_CENTAVOS` para facilitar su cambio. Las reservas se gestionan en la sede de retiro y se asignan a ejemplares físicamente disponibles en ella. Los materiales interbibliotecarios regresan siempre a su sede de pertenencia.
+El plazo y la multa son decisiones de diseño porque el enunciado pide control de vencimientos y reportes de multas, pero no indica valores. Se ajustan en `backend/configuracion.json`, de donde se cargan `Biblioteca.PLAZO_DIAS` y `Biblioteca.MULTA_DIARIA_CENTAVOS` al iniciar el proceso. Los valores de la tabla son los iniciales. Las reservas se gestionan en la sede de retiro y se asignan a ejemplares físicamente disponibles en ella. Los materiales interbibliotecarios regresan siempre a su sede de pertenencia.
+
+## Organización del código
+
+Consola y web delegan en `operaciones.py`, que mantiene una lista explícita de operaciones permitidas. Los controladores FastAPI en `api.py` validan la estructura, identifican al personal, comprueban su autorización y traducen los errores de negocio. `servicio.py` aplica las reglas y coordina transacciones; los DAOs de `dao.py` encapsulan el acceso SQL por entidad y reutilizan la conexión de la transacción. El SQL de los reportes y sus nombres visibles se reúnen en `reportes.py`. La API publica las transiciones del remito, los estados de entrega y las condiciones físicas definidos por el dominio, para que el frontend no mantenga otra copia.
+
+Como no se especificaron perfiles, se adoptó un único rol `PERSONAL`, autorizado para operar la aplicación. El usuario se crea desde consola en cada base; la contraseña se almacena como hash PBKDF2 con sal aleatoria. La sesión local usa una cookie HttpOnly y se elimina al cerrar sesión o reiniciar el servidor.
+
+En el navegador, `app.js` conserva las pantallas y los controles compartidos. La navegación y la función de cada pantalla parten de una única definición. `formularios.js` define una sola vez los campos de cada dato maestro para sus altas y ediciones. El esquema SQLite conserva explícitas sus restricciones de integridad y los patrones Factory y Observer conservan sus responsabilidades.
 
 ## Patrones de diseño aplicados
 
 1. **Factory / fábrica simple:** `FabricaPrestamos.crear` encapsula la elección entre `PrestamoLocal` y `PrestamoInterbibliotecario`. El caso de uso solicita un préstamo sin instanciar clases concretas. El tipo se persiste y determina si se necesita remito.
-2. **Observer:** `Remito` notifica cada transición a `HistorialRemito`, que guarda el evento en `historial_remitos`. La transición y el evento se confirman en la misma transacción; si falla, ambos se revierten. Este desacoplamiento permite agregar otros observadores (por ejemplo, notificaciones) sin modificar el remito.
+2. **Observer:** `Remito` notifica cada transición a `EventoRemitoDAO`, que guarda el evento en `historial_remitos`. La transición y el evento se confirman en la misma transacción; si falla, ambos se revierten. Este desacoplamiento permite agregar otros observadores (por ejemplo, notificaciones) sin modificar el remito.
 
 ## Reportes implementados
 

@@ -1,0 +1,23 @@
+{
+  "findings": [
+    {
+      "category": "violation",
+      "file": "frontend/login.html",
+      "line": 19,
+      "message": "Enabled literal button has no detectable action or submit behavior.",
+      "remediation": "Connect the button to a real action, make it a submit button, or disable/remove it.",
+      "ruleId": "affordance.actionless-button",
+      "severity": "error"
+    }
+  ],
+  "mode": "strict",
+  "projectRoot": "C:\\Users\\pedro\\OneDrive\\Documentos\\Pedro\\UTN FRC\\UTN - 2026\\DAO - 4K2\\Trabajo Práctico Integrador - Tema 1 - Biblioteca",
+  "schemaVersion": 1,
+  "summary": {
+    "errors": 1,
+    "total": 1,
+    "unresolved": 0,
+    "violations": 1,
+    "warnings": 0
+  }
+}

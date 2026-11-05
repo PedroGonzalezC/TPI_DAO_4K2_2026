@@ -5,8 +5,78 @@ from datetime import datetime
 from typing import Protocol
 
 
+CONDICIONES_DEVOLUCION = ("BUENO", "DANADO", "DESTRUIDO", "EXTRAVIADO")
+CONDICIONES_BAJA = ("DESTRUIDO", "EXTRAVIADO")
+ESTADOS_ENTREGA = {"LOCAL": "SOLICITADO", "INTERBIBLIOTECARIO": "LISTO"}
+
+
 class ReglaNegocio(ValueError):
     """Una operación incumple una regla del dominio."""
+
+
+@dataclass(frozen=True)
+class Sede:
+    id: int
+    nombre: str
+    direccion: str
+    contacto: str
+    horarios: str
+    activa: bool
+
+    def verificar_activa(self):
+        if not self.activa:
+            raise ReglaNegocio(f"La sede {self.id} está dada de baja")
+
+
+@dataclass(frozen=True)
+class Socio:
+    id: int
+    documento: str
+    nombre: str
+    email: str
+    habilitado: bool
+
+    def verificar_habilitado(self):
+        if not self.habilitado:
+            raise ReglaNegocio(f"El socio {self.id} está inhabilitado")
+
+
+@dataclass(frozen=True)
+class Ejemplar:
+    id: int
+    codigo: str
+    libro_id: int
+    sede_pertenencia_id: int
+    sede_actual_id: int
+    estado: str
+
+    def verificar_origen(self, sede_id):
+        if self.sede_pertenencia_id != sede_id or self.sede_actual_id != sede_id:
+            raise ReglaNegocio("El ejemplar no pertenece o no se encuentra en la sede de origen")
+
+
+@dataclass(frozen=True)
+class Libro:
+    id: int
+    isbn: str
+    titulo: str
+    autor: str
+    anio: int | None
+
+
+@dataclass(frozen=True)
+class Reserva:
+    id: int
+    socio_id: int
+    libro_id: int
+    sede_id: int
+    ejemplar_id: int | None
+    estado: str
+    creada_en: str
+
+    def verificar_cancelable(self):
+        if self.estado not in ('EN_ESPERA', 'ASIGNADA'):
+            raise ReglaNegocio('La reserva ya está cerrada')
 
 
 @dataclass(frozen=True)

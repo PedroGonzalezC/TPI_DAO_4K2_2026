@@ -14,12 +14,12 @@
 | Alcance | Fuente | Tipo | Revisado |
 |---|---|---|---|
 | Procesos y validaciones | `Tema1 - Biblioteca.pdf` | Enunciado de la cátedra | 2026-10-06 |
-| Ciclo de vida, multa, reservas y estados | `DISEÑO.md`, `biblioteca/servicio.py`, `tests/test_biblioteca.py` | Modelo y contrato implementado | 2026-10-06 |
-| Autorización/retención | Sin política en el enunciado; servidor solo en `127.0.0.1`, uso de demostración local | Límite de alcance | 2026-10-06 |
+| Ciclo de vida, multa, reservas y estados | `DISEÑO.md`, `backend/services/servicio.py`, `backend/tests/test_biblioteca.py` | Modelo y contrato implementado | 2026-10-06 |
+| Autorización/retención | El enunciado no define perfiles; se adoptó el rol de personal. Servidor solo en `127.0.0.1`, uso local | Decisión de alcance | 2026-11-05 |
 
 ## Visual contract
 
-`DESIGN.md` es la fuente normativa y `web/styles.css` su implementación directa. Tema claro único. Cualquier token nuevo se documenta en ambos archivos. El proyecto no usa un sistema previo de componentes.
+`DESIGN.md` es la fuente normativa y `frontend/css/styles.css` su implementación directa. Tema claro único. Cualquier token nuevo se documenta en ambos archivos. El proyecto no usa un sistema previo de componentes.
 
 ## Canonical UI Map
 
@@ -28,10 +28,10 @@
 | Table Selection | No aplica: no hay acciones masivas | — | — | Inspección de tablas |
 | Select/Listbox | `<select>` nativo y campos de `app.js` | Este contrato | Nativo | Teclado y popup del navegador |
 | Date | No hay entrada de fechas | Servicio Python | Fecha de servidor | Pruebas del dominio |
-| Form | `openForm` y `renderField` en `app.js` | Este contrato | Crear/editar | Flujo de formulario |
-| Scrollbar | Reglas globales de `web/styles.css` | `DESIGN.md` | Desborde de tabla | Estilos y navegador |
+| Form | `openForm`, `fieldHTML` y `openMasterForm` en `app.js`; campos y `errorCampo` en `formularios.js` | Este contrato | Crear/editar | Flujo de formulario |
+| Scrollbar | Reglas globales de `frontend/css/styles.css` | `DESIGN.md` | Desborde de tabla | Estilos y navegador |
 | Toast | `notify` en `app.js` | Este contrato | Éxito/info/error | Región viva |
-| CRUD | `api`, `openForm`, `refresh` | Servicio Python | Crear/editar | Flujo completo |
+| CRUD | `mutate`, `openForm`, `refresh`; `operaciones.py` en el servidor | Servicio Python | Crear/editar | Flujo completo |
 
 ## Component behavior
 
@@ -39,7 +39,9 @@ Los botones mantienen etiqueta, intención y posición al cargar; no admiten dob
 
 ## Dataset navigation
 
-Las tablas se paginan de a 10 filas en el cliente, con búsqueda y orden persistidos en URL. La aplicación es una demostración local para cientos de registros, y una instantánea de la base permite resolver referencias cruzadas sin múltiples consultas por fila. La tabla nunca renderiza una lista sin límite; cambios de filtro reinician la página y una mutación la ajusta. La selección masiva no existe. En móvil la tabla conserva sus columnas con desplazamiento horizontal visible.
+Las tablas se paginan en el cliente según `filas_por_pagina` de `backend/configuracion.json` (10 inicialmente), con búsqueda y orden persistidos en URL. La aplicación es una demostración local para cientos de registros, y una instantánea de la base permite resolver referencias cruzadas sin múltiples consultas por fila. La tabla nunca renderiza una lista sin límite; cambios de filtro reinician la página y una mutación la ajusta. La selección masiva no existe. En móvil la tabla conserva sus columnas con desplazamiento horizontal visible.
+
+La API entrega la configuración de presentación y los catálogos compartidos en `/api/state`. El tamaño de página, los tiempos de búsqueda/avisos y los formatos se consumen desde esa respuesta. Los formularios de alta y edición reutilizan los campos de `formularios.js`; las acciones logísticas consumen las transiciones de `modelo.py`. La navegación y el renderizado comparten `VIEWS` en `app.js`.
 
 ## Flow ledger
 
@@ -63,7 +65,7 @@ Un único diálogo `#dialog` sirve para formularios y confirmaciones. Las bajas 
 
 ## Async and resilience
 
-Mutaciones pesimistas: se espera confirmación del servidor y luego se recarga la instantánea. No se repiten automáticamente POST ni se afirma que un timeout haya revertido la acción. En fallo de red, el formulario permanece abierto y se ofrece reintentar tras revisar el listado. GET puede reintentarse; las respuestas de carga antiguas no sustituyen una más reciente. No existe autenticación ni edición multiusuario contractual: la interfaz está limitada al servidor local.
+Mutaciones pesimistas: se espera confirmación del servidor y luego se recarga la instantánea. No se repiten automáticamente POST ni se afirma que un timeout haya revertido la acción. En fallo de red, el formulario permanece abierto y se ofrece reintentar tras revisar el listado. GET puede reintentarse; las respuestas de carga antiguas no sustituyen una más reciente. El personal inicia sesión y el servidor local comprueba la sesión en los endpoints. Las sesiones se mantienen en memoria durante la ejecución del servidor.
 
 ## Validation
 
@@ -71,7 +73,7 @@ Los formularios usan `novalidate`, verifican campos requeridos antes de enviar y
 
 ## Verification
 
-- Pruebas del dominio: `python -m unittest discover -s tests -v`.
-- Pruebas HTTP: `python -m unittest discover -s tests -v`.
+- Pruebas del dominio y HTTP: `.\.venv\Scripts\python.exe -m unittest discover -s backend/tests -v`.
 - Auditoría premium: `python <skill>/scripts/audit_project.py . --mode strict`.
+- La auditoría estática señala el botón «Mostrar contraseña» como si no tuviera acción, pero su controlador está en `frontend/js/login.js` y cambia la visibilidad del campo. Es un falso positivo del análisis de HTML aislado.
 - Navegador: escritorio, móvil, teclado, éxito/error, vacío/búsqueda, remito abierto y estado de diálogo.

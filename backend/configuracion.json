@@ -1,0 +1,12 @@
+{
+  "base_datos": "biblioteca.db",
+  "puerto": 8000,
+  "plazo_dias": 14,
+  "multa_diaria_centavos": 10000,
+  "idioma": "es-AR",
+  "moneda": "ARS",
+  "filas_por_pagina": 10,
+  "espera_busqueda_ms": 300,
+  "tiempo_solicitud_ms": 15000,
+  "duracion_aviso_ms": 4800
+}

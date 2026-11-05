@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar · Red de Bibliotecas</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/login.css">
+  <script type="module" src="/js/login.js"></script>
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <p class="eyebrow">RED DE BIBLIOTECAS</p>
+    <h1>Ingresar al sistema</h1>
+    <p>Acceso para el personal de la biblioteca.</p>
+    <form id="login" novalidate>
+      <div class="field"><label for="usuario">Usuario</label><input id="usuario" name="usuario" autocomplete="username" required></div>
+      <div class="field"><label for="clave">Contraseña</label><input id="clave" name="clave" type="password" autocomplete="current-password" required></div>
+      <button type="button" class="text-button" id="mostrar-clave" aria-controls="clave" aria-pressed="false">Mostrar contraseña</button>
+      <p id="error" class="alert" role="alert" hidden></p>
+      <button class="button button-primary" type="submit">Ingresar</button>
+    </form>
+  </main>
+</body>
+</html>
