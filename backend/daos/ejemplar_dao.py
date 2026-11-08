@@ -20,13 +20,14 @@ class EjemplarDAO:
             sede_pertenencia_id=fila["sede_pertenencia_id"],
             sede_actual_id=fila["sede_actual_id"],
             estado=fila["estado"],
+            condicion=fila["condicion"] if "condicion" in fila.keys() else "BUENO",
         )
 
     def crear(self, ejemplar: Ejemplar) -> int:
         cursor = self.con.execute(
             """
-            INSERT INTO ejemplares(codigo, libro_id, sede_pertenencia_id, sede_actual_id, estado)
-            VALUES(?, ?, ?, ?, ?)
+            INSERT INTO ejemplares(codigo, libro_id, sede_pertenencia_id, sede_actual_id, estado, condicion)
+            VALUES(?, ?, ?, ?, ?, ?)
             """,
             (
                 ejemplar.codigo,
@@ -34,6 +35,7 @@ class EjemplarDAO:
                 ejemplar.sede_pertenencia_id,
                 ejemplar.sede_actual_id,
                 ejemplar.estado,
+                ejemplar.condicion,
             ),
         )
         return int(cursor.lastrowid)
@@ -58,8 +60,8 @@ class EjemplarDAO:
 
     def actualizar(self, ejemplar: Ejemplar) -> None:
         self.con.execute(
-            "UPDATE ejemplares SET sede_actual_id=?, estado=? WHERE id=?",
-            (ejemplar.sede_actual_id, ejemplar.estado, ejemplar.id),
+            "UPDATE ejemplares SET sede_actual_id=?, estado=?, condicion=? WHERE id=?",
+            (ejemplar.sede_actual_id, ejemplar.estado, ejemplar.condicion, ejemplar.id),
         )
 
     def consultar_disponibilidad(self, sede_id: int | None = None) -> list[dict]:

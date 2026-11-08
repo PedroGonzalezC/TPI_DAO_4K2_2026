@@ -3,6 +3,7 @@
 from .ejemplar_dao import EjemplarDAO
 from .evento_remito_dao import EventoRemitoDAO
 from .material_dao import LibroDAO, MaterialDAO
+from .multa_dao import MultaDAO
 from .prestamo_dao import PrestamoDAO
 from .remito_dao import RemitoDAO
 from .reserva_dao import ReservaDAO
@@ -15,6 +16,7 @@ __all__ = [
     "EventoRemitoDAO",
     "LibroDAO",
     "MaterialDAO",
+    "MultaDAO",
     "PrestamoDAO",
     "RemitoDAO",
     "ReservaDAO",

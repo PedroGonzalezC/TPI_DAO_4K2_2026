@@ -1,13 +1,16 @@
 """Servicio de negocio para solicitudes, préstamos y devoluciones."""
 
 from ..daos.ejemplar_dao import EjemplarDAO
+from ..daos.multa_dao import MultaDAO
 from ..daos.prestamo_dao import PrestamoDAO
 from ..daos.remito_dao import RemitoDAO
 from ..daos.reserva_dao import ReservaDAO
+from ..daos.socio_dao import SocioDAO
 from ..daos.solicitud_dao import SolicitudDAO
 from ..database.conexion import BaseDatos
 from ..models.excepciones import NoEncontradoError, ReglaNegocio, normalizar_fecha
 from ..models.fabrica_prestamos import FabricaPrestamos
+from ..models.multa import Multa
 from .catalogo_service import CatalogoService
 from .remito_service import RemitoService
 from .reserva_service import ReservaService
@@ -41,9 +44,13 @@ class PrestamoService:
         sede_origen_id: int,
         sede_destino_id: int,
         *,
+        plazo_dias: int | None = None,
         fecha=None,
     ) -> int:
         ahora = normalizar_fecha(fecha)
+        plazo = self.plazo_dias if plazo_dias is None else int(plazo_dias)
+        if plazo <= 0:
+            raise ReglaNegocio("La duración del préstamo debe ser mayor a cero días")
         with self.db.conexion() as con:
             SocioService.obtener_habilitado(con, socio_id)
             SedeService.obtener_activa(con, sede_origen_id)
@@ -73,6 +80,7 @@ class PrestamoService:
                 ejemplar_id,
                 sede_origen_id,
                 sede_destino_id,
+                plazo_dias=plazo,
                 solicitado_en=ahora.isoformat(),
             )
             prestamo_id = solicitud_dao.crear(solicitud)
@@ -91,7 +99,9 @@ class PrestamoService:
                 )
             return prestamo_id
 
-    def entregar_prestamo(self, prestamo_id: int, *, fecha=None) -> str:
+    def entregar_prestamo(
+        self, prestamo_id: int, *, plazo_dias: int | None = None, fecha=None
+    ) -> str:
         ahora = normalizar_fecha(fecha)
         with self.db.conexion() as con:
             prestamo_dao = PrestamoDAO(con)
@@ -108,7 +118,8 @@ class PrestamoService:
                 if remito_ida is not None and remito_ida.recibido_en is not None:
                     fecha_minima = remito_ida.recibido_en
 
-            vence = prestamo.entregar(ahora, fecha_minima or ahora.isoformat(), self.plazo_dias)
+            plazo = prestamo.plazo_dias if plazo_dias is None else int(plazo_dias)
+            vence = prestamo.entregar(ahora, fecha_minima or ahora.isoformat(), plazo)
             SocioService.obtener_habilitado(con, prestamo.socio_id)
             SedeService.obtener_activa(con, prestamo.sede_destino_id)
 
@@ -136,8 +147,25 @@ class PrestamoService:
             )
             prestamo_dao.actualizar(prestamo)
 
+            if multa > 0:
+                dias_atraso = max(1, multa // self.multa_diaria_centavos)
+                nueva_multa = Multa(
+                    prestamo_id=prestamo_id,
+                    socio_id=prestamo.socio_id,
+                    monto_centavos=multa,
+                    dias_atraso=dias_atraso,
+                    estado="PENDIENTE",
+                    creada_en=ahora.isoformat(),
+                )
+                MultaDAO(con).crear(nueva_multa)
+                socio = SocioService.obtener_existente(con, prestamo.socio_id)
+                socio.actualizar(habilitado=False)
+                SocioDAO(con).actualizar(socio)
+
             ejemplar = CatalogoService.obtener_ejemplar_existente(con, prestamo.ejemplar_id)
             ejemplar.estado = estado_ejemplar
+            if prestamo.condicion_devolucion:
+                ejemplar.condicion = prestamo.condicion_devolucion
             ejemplar_dao.actualizar(ejemplar)
 
             if estado_ejemplar == "POR_RETORNAR":

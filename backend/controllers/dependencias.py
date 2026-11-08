@@ -9,6 +9,7 @@ from ..models.excepciones import NoAutorizadoError
 from ..services import (
     Biblioteca,
     CatalogoService,
+    MultaService,
     PrestamoService,
     RemitoService,
     ReporteService,
@@ -99,3 +100,9 @@ def obtener_reporte_service(
     b: Annotated[Biblioteca, Depends(obtener_biblioteca)],
 ) -> ReporteService:
     return b.servicio_reportes
+
+
+def obtener_multa_service(
+    b: Annotated[Biblioteca, Depends(obtener_biblioteca)],
+) -> MultaService:
+    return b.multas

@@ -25,12 +25,13 @@ class PrestamoDAO:
         self.con.execute(
             """
             UPDATE prestamos
-            SET estado=?, entregado_en=?, vence_en=?, devuelto_en=?,
+            SET estado=?, plazo_dias=?, entregado_en=?, vence_en=?, devuelto_en=?,
                 condicion_devolucion=?, multa_centavos=?
             WHERE id=?
             """,
             (
                 prestamo.estado,
+                prestamo.plazo_dias,
                 prestamo.entregado_en,
                 prestamo.vence_en,
                 prestamo.devuelto_en,

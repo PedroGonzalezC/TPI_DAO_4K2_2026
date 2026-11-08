@@ -13,6 +13,7 @@ from ..models.excepciones import NoAutorizadoError, NoEncontradoError, ReglaNego
 from ..services.biblioteca_service import Biblioteca
 from .catalogo_controller import router as catalogo_router
 from .dependencias import ROLES_LECTURA, UsuarioActual, requerir_autorizacion
+from .multa_controller import router as multas_router
 from .prestamo_controller import router as prestamos_router
 from .remito_controller import router as remitos_router
 from .reporte_controller import router as reportes_router
@@ -80,19 +81,22 @@ def crear_app(ruta_db: str | Path | None = None) -> FastAPI:
     app.include_router(reservas_router)
     app.include_router(prestamos_router)
     app.include_router(remitos_router)
+    app.include_router(multas_router)
     app.include_router(reportes_router)
+
+    NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
 
     @app.get("/", include_in_schema=False)
     @app.get("/index.html", include_in_schema=False)
     def servir_index():
-        return FileResponse(FRONTEND_DIR / "index.html", media_type="text/html; charset=utf-8")
+        return FileResponse(FRONTEND_DIR / "index.html", media_type="text/html; charset=utf-8", headers=NO_CACHE)
 
     @app.get("/styles.css", include_in_schema=False)
     def servir_estilos():
-        return FileResponse(FRONTEND_DIR / "styles.css", media_type="text/css; charset=utf-8")
+        return FileResponse(FRONTEND_DIR / "styles.css", media_type="text/css; charset=utf-8", headers=NO_CACHE)
 
     @app.get("/app.js", include_in_schema=False)
     def servir_js():
-        return FileResponse(FRONTEND_DIR / "app.js", media_type="text/javascript; charset=utf-8")
+        return FileResponse(FRONTEND_DIR / "app.js", media_type="text/javascript; charset=utf-8", headers=NO_CACHE)
 
     return app

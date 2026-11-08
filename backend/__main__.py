@@ -40,8 +40,9 @@ def construir_parser():
     p.add_argument("--sede", type=int)
     comando("reserva-crear", ("socio_id", int), ("libro_id", int), ("sede_id", int))
     comando("reserva-cancelar", ("id", int))
-    comando("prestamo-solicitar", ("socio_id", int), ("ejemplar_id", int),
+    p = comando("prestamo-solicitar", ("socio_id", int), ("ejemplar_id", int),
             ("origen_id", int), ("destino_id", int))
+    p.add_argument("--plazo-dias", type=int, default=14)
     comando("prestamo-entregar", ("id", int))
     p = comando("prestamo-devolver", ("id", int))
     p.add_argument("--condicion", choices=("BUENO", "DANADO", "DESTRUIDO", "EXTRAVIADO"), default="BUENO")
@@ -75,7 +76,7 @@ def main():
             "reserva-crear": lambda: b.reservar(args.socio_id, args.libro_id, args.sede_id),
             "reserva-cancelar": lambda: b.cancelar_reserva(args.id),
             "prestamo-solicitar": lambda: b.solicitar_prestamo(args.socio_id, args.ejemplar_id,
-                args.origen_id, args.destino_id),
+                args.origen_id, args.destino_id, plazo_dias=args.plazo_dias),
             "prestamo-entregar": lambda: {"vence_en": b.entregar_prestamo(args.id)},
             "prestamo-devolver": lambda: {"multa_centavos": b.devolver_prestamo(args.id, args.condicion)},
             "remito-avanzar": lambda: b.avanzar_remito(args.id, args.estado.upper(), detalle=args.detalle),

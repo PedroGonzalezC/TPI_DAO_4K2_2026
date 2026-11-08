@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS ejemplares (
  id INTEGER PRIMARY KEY, codigo TEXT NOT NULL UNIQUE, libro_id INTEGER NOT NULL REFERENCES libros(id),
  sede_pertenencia_id INTEGER NOT NULL REFERENCES sedes(id), sede_actual_id INTEGER NOT NULL REFERENCES sedes(id),
  estado TEXT NOT NULL DEFAULT 'DISPONIBLE' CHECK(estado IN
- ('DISPONIBLE','APARTADO','RESERVADO','PRESTADO','EN_TRANSITO','POR_RETORNAR','EN_REVISION','BAJA'))
+ ('DISPONIBLE','APARTADO','RESERVADO','PRESTADO','EN_TRANSITO','POR_RETORNAR','EN_REVISION','BAJA')),
+ condicion TEXT NOT NULL DEFAULT 'BUENO' CHECK(condicion IN ('BUENO','DANADO','DESTRUIDO','EXTRAVIADO'))
 );
 CREATE TABLE IF NOT EXISTS reservas (
  id INTEGER PRIMARY KEY, socio_id INTEGER NOT NULL REFERENCES socios(id),
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS prestamos (
  sede_destino_id INTEGER NOT NULL REFERENCES sedes(id),
  tipo TEXT NOT NULL CHECK(tipo IN ('LOCAL','INTERBIBLIOTECARIO')),
  estado TEXT NOT NULL CHECK(estado IN ('SOLICITADO','EN_TRANSITO','LISTO','ACTIVO','DEVUELTO','CANCELADO')),
+ plazo_dias INTEGER NOT NULL DEFAULT 14 CHECK(plazo_dias > 0),
  solicitado_en TEXT NOT NULL, entregado_en TEXT, vence_en TEXT, devuelto_en TEXT,
  condicion_devolucion TEXT CHECK(condicion_devolucion IN ('BUENO','DANADO','DESTRUIDO','EXTRAVIADO')),
  multa_centavos INTEGER NOT NULL DEFAULT 0 CHECK(multa_centavos >= 0)
@@ -57,6 +59,15 @@ CREATE TABLE IF NOT EXISTS historial_remitos (
  id INTEGER PRIMARY KEY, remito_id INTEGER NOT NULL REFERENCES remitos(id),
  estado TEXT NOT NULL, fecha TEXT NOT NULL, detalle TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS multas (
+ id INTEGER PRIMARY KEY, prestamo_id INTEGER NOT NULL UNIQUE REFERENCES prestamos(id),
+ socio_id INTEGER NOT NULL REFERENCES socios(id),
+ monto_centavos INTEGER NOT NULL CHECK(monto_centavos > 0),
+ dias_atraso INTEGER NOT NULL CHECK(dias_atraso > 0),
+ estado TEXT NOT NULL DEFAULT 'PENDIENTE' CHECK(estado IN ('PENDIENTE','PAGADA')),
+ creada_en TEXT NOT NULL, pagada_en TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_multas_socio ON multas(socio_id, estado);
 CREATE INDEX IF NOT EXISTS idx_prestamos_estado ON prestamos(estado, vence_en);
 CREATE INDEX IF NOT EXISTS idx_reservas_espera ON reservas(libro_id, sede_id, estado, creada_en);
 """

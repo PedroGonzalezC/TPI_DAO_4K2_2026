@@ -46,6 +46,7 @@ def solicitar_prestamo(
         datos.ejemplar_id,
         datos.sede_origen_id,
         datos.sede_destino_id,
+        plazo_dias=datos.plazo_dias,
     )
     return {"id": nuevo_id, "resultado": nuevo_id}
 

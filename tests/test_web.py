@@ -69,10 +69,13 @@ class TestWebControllers(TestCase):
                 "ejemplar_id": ejemplar,
                 "sede_origen_id": sede_origen,
                 "sede_destino_id": sede_destino,
+                "plazo_dias": 10,
             },
         )
         self.assertEqual(res_prestamo.status_code, 201)
         prestamo_id = res_prestamo.json()["id"]
+        self.assertEqual(self.client.get("/api/prestamos").json()[0]["plazo_dias"], 10)
+        self.assertEqual(self.client.get("/api/ejemplares").json()[0]["condicion"], "BUENO")
 
         remitos = self.client.get("/api/remitos").json()
         self.assertEqual(len(remitos), 1)

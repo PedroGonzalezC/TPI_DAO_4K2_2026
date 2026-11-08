@@ -66,12 +66,15 @@ class CatalogoService:
 
     listar_libros = listar_materiales
 
-    def crear_ejemplar(self, codigo: str, libro_id: int, sede_id: int) -> int:
+    def crear_ejemplar(
+        self, codigo: str, libro_id: int, sede_id: int, condicion: str = "BUENO"
+    ) -> int:
         ejemplar = Ejemplar(
             codigo=codigo,
             libro_id=libro_id,
             sede_pertenencia_id=sede_id,
             sede_actual_id=sede_id,
+            condicion=condicion,
         )
         with self.db.conexion() as con:
             self.obtener_material_existente(con, libro_id)

@@ -17,9 +17,9 @@ class SolicitudDAO:
             """
             INSERT INTO prestamos(
                 socio_id, ejemplar_id, sede_origen_id, sede_destino_id,
-                tipo, estado, solicitado_en
+                tipo, estado, plazo_dias, solicitado_en
             )
-            VALUES(?, ?, ?, ?, ?, ?, ?)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 solicitud.socio_id,
@@ -28,6 +28,7 @@ class SolicitudDAO:
                 solicitud.sede_destino_id,
                 solicitud.tipo,
                 solicitud.estado,
+                solicitud.plazo_dias,
                 solicitud.solicitado_en,
             ),
         )

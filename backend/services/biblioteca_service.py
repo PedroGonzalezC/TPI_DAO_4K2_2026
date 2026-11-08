@@ -5,6 +5,7 @@ from pathlib import Path
 from ..database.conexion import BaseDatos
 from ..models.excepciones import ReglaNegocio
 from .catalogo_service import CatalogoService
+from .multa_service import MultaService
 from .prestamo_service import PrestamoService
 from .remito_service import RemitoService
 from .reporte_service import ReporteService
@@ -32,6 +33,7 @@ class Biblioteca:
             multa_diaria_centavos=self.MULTA_DIARIA_CENTAVOS,
         )
         self.remitos = RemitoService(self.db, self.reservas)
+        self.multas = MultaService(self.db)
         self.servicio_reportes = ReporteService(
             self.db, multa_diaria_centavos=self.MULTA_DIARIA_CENTAVOS
         )
@@ -68,8 +70,8 @@ class Biblioteca:
             libro_id, titulo=titulo, autor=autor, anio=anio
         )
 
-    def crear_ejemplar(self, codigo, libro_id, sede_id):
-        return self.catalogo.crear_ejemplar(codigo, libro_id, sede_id)
+    def crear_ejemplar(self, codigo, libro_id, sede_id, condicion="BUENO"):
+        return self.catalogo.crear_ejemplar(codigo, libro_id, sede_id, condicion=condicion)
 
     def listar(self, tabla: str):
         listadores = {
@@ -80,6 +82,7 @@ class Biblioteca:
             "reservas": self.reservas.listar_reservas,
             "prestamos": self.prestamos.listar_prestamos,
             "remitos": self.remitos.listar_remitos,
+            "multas": self.multas.listar_multas,
         }
         if tabla not in listadores:
             raise ReglaNegocio("Listado desconocido")
@@ -95,10 +98,22 @@ class Biblioteca:
         return self.reservas.cancelar_reserva(reserva_id)
 
     def solicitar_prestamo(
-        self, socio_id, ejemplar_id, sede_origen_id, sede_destino_id, *, fecha=None
+        self,
+        socio_id,
+        ejemplar_id,
+        sede_origen_id,
+        sede_destino_id,
+        *,
+        plazo_dias=None,
+        fecha=None,
     ):
         return self.prestamos.solicitar_prestamo(
-            socio_id, ejemplar_id, sede_origen_id, sede_destino_id, fecha=fecha
+            socio_id,
+            ejemplar_id,
+            sede_origen_id,
+            sede_destino_id,
+            plazo_dias=plazo_dias,
+            fecha=fecha,
         )
 
     def avanzar_remito(self, remito_id, nuevo_estado, *, fecha=None, detalle=""):
@@ -106,11 +121,16 @@ class Biblioteca:
             remito_id, nuevo_estado, fecha=fecha, detalle=detalle
         )
 
-    def entregar_prestamo(self, prestamo_id, *, fecha=None):
-        return self.prestamos.entregar_prestamo(prestamo_id, fecha=fecha)
+    def entregar_prestamo(self, prestamo_id, *, plazo_dias=None, fecha=None):
+        return self.prestamos.entregar_prestamo(
+            prestamo_id, plazo_dias=plazo_dias, fecha=fecha
+        )
 
     def devolver_prestamo(self, prestamo_id, condicion="BUENO", *, fecha=None):
         return self.prestamos.devolver_prestamo(prestamo_id, condicion, fecha=fecha)
+
+    def pagar_multa(self, multa_id, *, fecha=None):
+        return self.multas.pagar_multa(multa_id, fecha=fecha)
 
     def cerrar_revision(self, ejemplar_id, apto: bool):
         return self.catalogo.cerrar_revision(ejemplar_id, apto)

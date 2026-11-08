@@ -11,6 +11,7 @@ from .excepciones import (
 )
 from .fabrica_prestamos import FabricaPrestamos
 from .material import Libro, Material
+from .multa import Multa
 from .observador_remito import ObservadorRemito
 from .prestamo import (
     Prestamo,
@@ -29,6 +30,7 @@ __all__ = [
     "FabricaPrestamos",
     "Libro",
     "Material",
+    "Multa",
     "NoAutorizadoError",
     "NoEncontradoError",
     "ObservadorRemito",

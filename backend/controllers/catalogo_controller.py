@@ -70,7 +70,9 @@ def crear_ejemplar(
     _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_GESTION))],
     servicio: Annotated[CatalogoService, Depends(obtener_catalogo_service)],
 ):
-    nuevo_id = servicio.crear_ejemplar(datos.codigo, datos.libro_id, datos.sede_id)
+    nuevo_id = servicio.crear_ejemplar(
+        datos.codigo, datos.libro_id, datos.sede_id, condicion=datos.condicion
+    )
     return {"id": nuevo_id, "resultado": nuevo_id}
 
 

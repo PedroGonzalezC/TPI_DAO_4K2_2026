@@ -7,10 +7,15 @@ from pathlib import Path
 from .services.biblioteca_service import Biblioteca
 
 
-def poblar(ruta):
+def poblar(ruta, reset=False):
     ruta = Path(ruta)
-    if ruta.exists() and ruta.stat().st_size:
-        raise ValueError(f"La base ya existe y no se modificó: {ruta}")
+    if ruta.exists():
+        if reset:
+            ruta.unlink()
+        elif ruta.stat().st_size:
+            raise ValueError(
+                f"La base ya existe y no se modificó: {ruta}. Usá --reset para regenerarla."
+            )
     b = Biblioteca(ruta)
     t = datetime.now().replace(microsecond=0) - timedelta(days=5)
     centro = b.crear_sede("Biblioteca Central", "Av. Vélez Sarsfield 1200", "351 555-0101", "Lun a vie · 9 a 19")
@@ -19,13 +24,14 @@ def poblar(ruta):
     ana = b.crear_socio("30123456", "Ana Ledesma", "ana.ledesma@example.com")
     lucas = b.crear_socio("32987654", "Lucas Díaz", "lucas.diaz@example.com")
     maria = b.crear_socio("28555111", "María Torres", "maria.torres@example.com")
-    b.crear_socio("34444777", "Sofía Aguirre", "sofia.aguirre@example.com")
+    sofia = b.crear_socio("34444777", "Sofía Aguirre", "sofia.aguirre@example.com")
     objetos = b.crear_libro("9789870001001", "Diseño de aplicaciones con objetos", "M. Salvatierra", 2024)
     datos = b.crear_libro("9789870001002", "Datos en movimiento", "L. Pereyra", 2022)
     redes = b.crear_libro("9789870001003", "Redes de lectura", "V. Carrizo", 2021)
     archivo = b.crear_libro("9789870001004", "El archivo compartido", "P. Molina", 2025)
     e1 = b.crear_ejemplar("CEN-001", objetos, centro)
     b.crear_ejemplar("CEN-002", objetos, centro)
+    e_vencido = b.crear_ejemplar("CEN-003", archivo, centro)
     e3 = b.crear_ejemplar("NOR-014", datos, norte)
     e4 = b.crear_ejemplar("SUR-008", redes, sur)
     b.crear_ejemplar("SUR-009", archivo, sur)
@@ -33,6 +39,13 @@ def poblar(ruta):
 
     local = b.solicitar_prestamo(ana, e1, centro, centro, fecha=t)
     b.entregar_prestamo(local, fecha=t + timedelta(hours=1))
+
+    # Préstamo entregado anteayer con duración de 1 día: venció ayer (genera multa activa)
+    t_anteayer = datetime.now().replace(microsecond=0) - timedelta(days=2)
+    prestamo_vencido = b.solicitar_prestamo(
+        sofia, e_vencido, centro, centro, plazo_dias=1, fecha=t_anteayer
+    )
+    b.entregar_prestamo(prestamo_vencido, plazo_dias=1, fecha=t_anteayer)
 
     inter = b.solicitar_prestamo(lucas, e3, norte, centro, fecha=t + timedelta(days=1))
     ida = b.listar("remitos")[-1]["id"]
@@ -52,8 +65,11 @@ def poblar(ruta):
 def main():
     parser = argparse.ArgumentParser(description="Crear base de muestra de la biblioteca")
     parser.add_argument("--db", default="demo_biblioteca.db")
+    parser.add_argument(
+        "--reset", action="store_true", help="Sobrescribir la base si ya existe"
+    )
     args = parser.parse_args()
-    poblar(args.db)
+    poblar(args.db, reset=args.reset)
     print(f"Base de demostración creada: {args.db}")
     print(f"Iniciá la interfaz con: python -m backend.web --db {args.db}")
 

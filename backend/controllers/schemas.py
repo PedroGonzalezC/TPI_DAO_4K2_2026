@@ -50,6 +50,7 @@ class EjemplarCrearRequest(ModeloEntrada):
     codigo: str = Field(..., min_length=1)
     libro_id: int = Field(..., gt=0)
     sede_id: int = Field(..., gt=0)
+    condicion: str = Field(default="BUENO", min_length=1)
 
 
 class RevisionCerrarRequest(ModeloEntrada):
@@ -67,6 +68,7 @@ class SolicitudPrestamoRequest(ModeloEntrada):
     ejemplar_id: int = Field(..., gt=0)
     sede_origen_id: int = Field(..., gt=0)
     sede_destino_id: int = Field(..., gt=0)
+    plazo_dias: int = Field(default=14, gt=0)
 
 
 class DevolucionPrestamoRequest(ModeloEntrada):

@@ -7,10 +7,10 @@ Se implementaron los ocho procesos obligatorios y todas las validaciones indicad
 ## Arquitectura en capas
 
 1. **Presentación (`frontend/`):** Frontend web encargado de mostrar la información y permitir la interacción de los usuarios mediante llamadas REST.
-2. **Controllers (`backend/controllers/`):** Implementados en archivos separados por recurso (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `reporte_controller.py`). Reciben solicitudes HTTP, validan la estructura con esquemas Pydantic (`schemas.py`), identifican al usuario y comprueban su autorización por rol (`dependencias.py`), invocan los servicios correspondientes y traducen excepciones de negocio (`app.py`).
-3. **Services (`backend/services/`):** Un archivo por servicio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `reporte_service.py`, `biblioteca_service.py`). Validan reglas del dominio, coordinan operaciones multi-DAO dentro de una misma transacción, utilizan entidades y patrones, y mantienen la coherencia entre solicitudes, préstamos, ejemplares, reservas y remitos.
-4. **Dominio / Models (`backend/models/`):** Un archivo por entidad (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `excepciones.py`) que encapsula datos, comportamientos propios y patrones (`FabricaPrestamos`, `ObservadorRemito`) sin código SQL ni dependencia de FastAPI.
-5. **Persistencia / DAO (`backend/daos/`):** Un archivo por DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`), sin lógica de negocio ni decisiones de autorización.
+2. **Controllers (`backend/controllers/`):** Implementados en archivos separados por recurso (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `multa_controller.py`, `reporte_controller.py`). Reciben solicitudes HTTP, validan la estructura con esquemas Pydantic (`schemas.py`), identifican al usuario y comprueban su autorización por rol (`dependencias.py`), invocan los servicios correspondientes y traducen excepciones de negocio (`app.py`).
+3. **Services (`backend/services/`):** Un archivo por servicio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `multa_service.py`, `reporte_service.py`, `biblioteca_service.py`). Validan reglas del dominio, coordinan operaciones multi-DAO dentro de una misma transacción, utilizan entidades y patrones, y mantienen la coherencia entre solicitudes, préstamos, ejemplares, reservas, remitos y multas.
+4. **Dominio / Models (`backend/models/`):** Un archivo por entidad (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `multa.py`, `excepciones.py`) que encapsula datos, comportamientos propios y patrones (`FabricaPrestamos`, `ObservadorRemito`) sin código SQL ni dependencia de FastAPI.
+5. **Persistencia / DAO (`backend/daos/`):** Un archivo por DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`, `multa_dao.py`), sin lógica de negocio ni decisiones de autorización.
 6. **Base de datos (`backend/database/`):** Esquema relacional SQLite (`esquema.py`) y gestor transaccional de conexiones (`conexion.py`).
 
 ## Diagrama Entidad-Relación (DER) y Modelo de Datos
@@ -36,6 +36,8 @@ erDiagram
     EJEMPLARES ||--o{ REMITOS : "trasladado en (ejemplar_id)"
 
     PRESTAMOS ||--o{ REMITOS : "genera (prestamo_id)"
+    PRESTAMOS ||--o| MULTAS : "origina por atraso (prestamo_id)"
+    SOCIOS ||--o{ MULTAS : "adeuda (socio_id)"
     REMITOS ||--o{ HISTORIAL_REMITOS : "registra evento (remito_id)"
 
     SEDES {
@@ -108,6 +110,17 @@ erDiagram
         TEXT estado
         TEXT creado_en
         TEXT recibido_en
+    }
+
+    MULTAS {
+        INTEGER id PK
+        INTEGER prestamo_id FK
+        INTEGER socio_id FK
+        INTEGER monto_centavos
+        INTEGER dias_atraso
+        TEXT estado
+        TEXT creada_en
+        TEXT pagada_en
     }
 
     HISTORIAL_REMITOS {
@@ -275,6 +288,30 @@ classDiagram
     Socio "1" <-- "*" Prestamo : titular
     Ejemplar "1" <-- "*" Prestamo : objeto de
     Prestamo "1" <-- "0..2" Remito : traslada
+    Prestamo "1" <-- "0..1" Multa : genera por atraso
+    Socio "1" <-- "*" Multa : adeuda
+
+    class Multa {
+        +int id
+        +int prestamo_id
+        +int socio_id
+        +int monto_centavos
+        +int dias_atraso
+        +str estado
+        +str creada_en
+        +str pagada_en
+        +bool esta_pendiente
+        +pagar(ahora) void
+    }
+
+    class MultaDAO {
+        +Connection con
+        +crear(multa) int
+        +obtener_por_id(multa_id) Multa
+        +actualizar(multa) void
+        +tiene_pendientes_por_socio(socio_id) bool
+        +listar() list
+    }
 ```
 
 - **Sede:** nombre único, dirección, contacto, horarios y estado activo/baja.
@@ -284,6 +321,7 @@ classDiagram
 - **Préstamo:** socio, ejemplar, origen, destino, tipo, estado, fechas, condición de devolución y multa. El tipo surge de comparar las sedes.
 - **Remito:** identifica cada traslado de ida o regreso, con origen, destino, estado y fechas. Cada cambio produce un evento de historial.
 - **Reserva:** pedido por socio, libro y sede de retiro. Su asignación es por orden de llegada.
+- **Multa:** registro persistente originado al devolver un préstamo con atraso. Conserva el monto en centavos, días de atraso y su estado (`PENDIENTE` o `PAGADA`). Mientras esté `PENDIENTE`, el socio permanece inhabilitado para nuevos préstamos o reservas hasta que se registre su pago.
 
 Las claves foráneas, restricciones `UNIQUE`, `CHECK` e índices parciales de SQLite evitan duplicados y más de un préstamo vigente para el mismo ejemplar. Las operaciones que modifican varias tablas se ejecutan en una sola transacción.
 
@@ -314,7 +352,7 @@ Estados del ejemplar: `DISPONIBLE`, `APARTADO`, `RESERVADO`, `PRESTADO`, `EN_TRA
 | Propiedad del ejemplar | La sede de origen debe ser su sede de pertenencia y su ubicación actual. |
 | Duplicados | Documento, ISBN, código de ejemplar y nombre de sede únicos. |
 | Vencimiento | Catorce días corridos desde la entrega; no desde la solicitud. |
-| Multa | $100 por día corrido de atraso. Se guarda en centavos enteros para evitar errores de redondeo. |
+| Multa | $100 por día corrido de atraso. Al devolver con atraso se crea un registro en `multas` con estado `PENDIENTE` y el socio queda inhabilitado hasta que se registre el pago (`PAGADA`). |
 | Reservas | Cola por libro y sede; se asigna el primer ejemplar disponible a la primera reserva vigente de socio habilitado. Solo el titular puede solicitar ese ejemplar. |
 | Condición de devolución | `BUENO`, `DANADO`, `DESTRUIDO` o `EXTRAVIADO`. |
 

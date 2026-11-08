@@ -15,6 +15,7 @@ class Prestamo:
     sede_origen_id: int
     sede_destino_id: int
     estado: str = "SOLICITADO"
+    plazo_dias: int = 14
     solicitado_en: str | None = None
     entregado_en: str | None = None
     vence_en: str | None = None
@@ -24,6 +25,11 @@ class Prestamo:
     id: int | None = None
 
     CONDICIONES_VALIDAS = {"BUENO", "DANADO", "DESTRUIDO", "EXTRAVIADO"}
+
+    def __post_init__(self) -> None:
+        if self.plazo_dias is None or int(self.plazo_dias) <= 0:
+            raise ReglaNegocio("La duración del préstamo debe ser mayor a cero días")
+        self.plazo_dias = int(self.plazo_dias)
 
     @property
     def tipo(self) -> str:
@@ -47,13 +53,17 @@ class Prestamo:
     def marcar_listo(self) -> None:
         self.estado = "LISTO"
 
-    def entregar(self, ahora: datetime, fecha_minima_iso: str, plazo_dias: int) -> str:
+    def entregar(self, ahora: datetime, fecha_minima_iso: str, plazo_dias: int | None = None) -> str:
         requerido = self.estado_requerido_entrega
         if self.estado != requerido:
             raise ReglaNegocio(f"El préstamo debe estar en estado {requerido} para entregarlo")
         if ahora < datetime.fromisoformat(fecha_minima_iso):
             raise ReglaNegocio("La entrega no puede preceder a la solicitud o recepción")
-        vence = (ahora + timedelta(days=plazo_dias)).date().isoformat()
+        dias = self.plazo_dias if plazo_dias is None else int(plazo_dias)
+        if dias <= 0:
+            raise ReglaNegocio("La duración del préstamo debe ser mayor a cero días")
+        self.plazo_dias = dias
+        vence = (ahora + timedelta(days=dias)).date().isoformat()
         self.estado = "ACTIVO"
         self.entregado_en = ahora.isoformat()
         self.vence_en = vence

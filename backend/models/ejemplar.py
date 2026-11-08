@@ -14,6 +14,7 @@ class Ejemplar:
     sede_pertenencia_id: int
     sede_actual_id: int
     estado: str = "DISPONIBLE"
+    condicion: str = "BUENO"
     id: int | None = None
 
     ESTADOS_VALIDOS = {
@@ -26,11 +27,15 @@ class Ejemplar:
         "EN_REVISION",
         "BAJA",
     }
+    CONDICIONES_VALIDAS = {"BUENO", "DANADO", "DESTRUIDO", "EXTRAVIADO"}
 
     def __post_init__(self) -> None:
         self.codigo = validar_texto_obligatorio(self.codigo, "Código")
+        self.condicion = validar_texto_obligatorio(self.condicion, "Condición").upper()
         if self.estado not in self.ESTADOS_VALIDOS:
             raise ReglaNegocio(f"Estado de ejemplar inválido: {self.estado}")
+        if self.condicion not in self.CONDICIONES_VALIDAS:
+            raise ReglaNegocio(f"Condición de ejemplar inválida: {self.condicion}")
 
     @property
     def esta_disponible(self) -> bool:

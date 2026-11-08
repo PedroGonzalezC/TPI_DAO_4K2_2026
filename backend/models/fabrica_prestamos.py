@@ -17,6 +17,7 @@ class FabricaPrestamos:
         origen: int,
         destino: int,
         *,
+        plazo_dias: int = 14,
         solicitado_en: str | None = None,
     ) -> Prestamo:
         clase = PrestamoLocal if origen == destino else PrestamoInterbibliotecario
@@ -25,6 +26,7 @@ class FabricaPrestamos:
             ejemplar_id=ejemplar_id,
             sede_origen_id=origen,
             sede_destino_id=destino,
+            plazo_dias=plazo_dias,
             solicitado_en=solicitado_en,
         )
 
@@ -39,6 +41,7 @@ class FabricaPrestamos:
         tipo: str,
         estado: str,
         solicitado_en: str,
+        plazo_dias: int = 14,
         entregado_en: str | None = None,
         vence_en: str | None = None,
         devuelto_en: str | None = None,
@@ -53,6 +56,7 @@ class FabricaPrestamos:
             sede_origen_id=sede_origen_id,
             sede_destino_id=sede_destino_id,
             estado=estado,
+            plazo_dias=plazo_dias,
             solicitado_en=solicitado_en,
             entregado_en=entregado_en,
             vence_en=vence_en,
