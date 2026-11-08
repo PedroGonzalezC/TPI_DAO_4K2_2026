@@ -115,11 +115,22 @@ async function refresh() {
   loadController = new AbortController();
   if (!state) main.innerHTML = `<div class="table-message" role="status">Cargando registros de la biblioteca…</div>`;
   try {
-    const fresh = await request('/api/state', { controller: loadController });
+    const opts = { controller: loadController };
+    const [sedes, socios, libros, ejemplares, reservas, prestamos, remitos, reportes, base] = await Promise.all([
+      request('/api/sedes', opts),
+      request('/api/socios', opts),
+      request('/api/libros', opts),
+      request('/api/ejemplares', opts),
+      request('/api/reservas', opts),
+      request('/api/prestamos', opts),
+      request('/api/remitos', opts),
+      request('/api/reportes', opts),
+      request('/api/base', opts),
+    ]);
     if (seq !== loadSeq) return;
-    state = fresh;
+    state = { tablas: { sedes, socios, libros, ejemplares, reservas, prestamos, remitos }, reportes, base };
     loadError = '';
-    baseLabel.textContent = fresh.base.demo ? 'Base de muestra' : 'Base principal';
+    baseLabel.textContent = base.demo ? 'Base de muestra' : 'Base principal';
   } catch (error) {
     if (seq !== loadSeq) return;
     loadError = error.name === 'AbortError' ? 'La carga tardó demasiado. Podés volver a intentarlo.' :
@@ -127,11 +138,33 @@ async function refresh() {
   }
   render();
 }
+function buildRestCall(payload) {
+  const { accion, ...rest } = payload;
+  if (accion === 'crear_sede') return ['POST', '/api/sedes', { nombre: rest.nombre, direccion: rest.direccion, contacto: rest.contacto, horarios: rest.horarios }];
+  if (accion === 'editar_sede') return ['PATCH', `/api/sedes/${Number(rest.id)}`, { direccion: rest.direccion, contacto: rest.contacto, horarios: rest.horarios, activa: rest.activa }];
+  if (accion === 'crear_socio') return ['POST', '/api/socios', { documento: rest.documento, nombre: rest.nombre, email: rest.email }];
+  if (accion === 'editar_socio') return ['PATCH', `/api/socios/${Number(rest.id)}`, { nombre: rest.nombre, email: rest.email, habilitado: rest.habilitado }];
+  if (accion === 'crear_libro') return ['POST', '/api/libros', { isbn: rest.isbn, titulo: rest.titulo, autor: rest.autor, anio: rest.anio !== '' && rest.anio != null ? Number(rest.anio) : null }];
+  if (accion === 'editar_libro') return ['PATCH', `/api/libros/${Number(rest.id)}`, { titulo: rest.titulo, autor: rest.autor, anio: rest.anio !== '' && rest.anio != null ? Number(rest.anio) : null }];
+  if (accion === 'crear_ejemplar') return ['POST', '/api/ejemplares', { codigo: rest.codigo, libro_id: Number(rest.libro_id), sede_id: Number(rest.sede_id) }];
+  if (accion === 'cerrar_revision') return ['POST', `/api/ejemplares/${Number(rest.ejemplar_id)}/revision`, { apto: Boolean(rest.apto) }];
+  if (accion === 'reservar') return ['POST', '/api/reservas', { socio_id: Number(rest.socio_id), libro_id: Number(rest.libro_id), sede_id: Number(rest.sede_id) }];
+  if (accion === 'cancelar_reserva') return ['DELETE', `/api/reservas/${Number(rest.id)}`, null];
+  if (accion === 'solicitar_prestamo') return ['POST', '/api/prestamos', { socio_id: Number(rest.socio_id), ejemplar_id: Number(rest.ejemplar_id), sede_origen_id: Number(rest.sede_origen_id), sede_destino_id: Number(rest.sede_destino_id) }];
+  if (accion === 'entregar_prestamo') return ['POST', `/api/prestamos/${Number(rest.id)}/entregar`, null];
+  if (accion === 'devolver_prestamo') return ['POST', `/api/prestamos/${Number(rest.id)}/devolver`, { condicion: rest.condicion }];
+  if (accion === 'avanzar_remito') return ['POST', `/api/remitos/${Number(rest.id)}/avanzar`, { estado: rest.estado, detalle: rest.detalle || '' }];
+  throw new Error('Operación desconocida');
+}
 async function mutate(payload) {
   try {
-    return await request('/api/action', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-    });
+    const [method, url, body] = buildRestCall(payload);
+    const options = { method, headers: {} };
+    if (body !== null) {
+      options.headers['Content-Type'] = 'application/json';
+      options.body = JSON.stringify(body);
+    }
+    return await request(url, options);
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('No se pudo confirmar el resultado. Revisá el listado antes de volver a intentar.');
     if (error instanceof TypeError) throw new Error('Se perdió la conexión. Revisá el listado antes de volver a intentar.');
@@ -430,7 +463,7 @@ function dispatchAction(action, id) {
 async function openHistory(slip) {
   openDialog({ title: `Historial R-${String(slip.id).padStart(3, '0')}`, eyebrow: 'TRAZABILIDAD', description: `${nameOf('sedes', slip.origen_id)} → ${nameOf('sedes', slip.destino_id)}`, type: 'history', historyId: slip.id, body: '<div class="table-message" role="status">Cargando historial…</div>' });
   try {
-    const events = await request(`/api/remito/${slip.id}/historial`);
+    const events = await request(`/api/remitos/${slip.id}/historial`);
     if (dialogLayer.hidden || dialogConfig?.historyId !== slip.id) return;
     dialogBody.innerHTML = `<ol class="history-list">${events.map(x => `<li><span class="history-point" aria-hidden="true"></span><div>${badge(x.estado)}<span class="history-time">${dateTimeText(x.fecha)}</span><p>${esc(x.detalle || 'Sin observaciones')}</p></div></li>`).join('')}</ol><div class="dialog-actions"><button type="button" class="button button-outline" data-action="dialog-cancel">Cerrar</button></div>`;
   } catch (error) { if (!dialogLayer.hidden && dialogConfig?.historyId === slip.id) dialogBody.innerHTML = `<div class="alert" role="alert">No se pudo leer el historial. Cerrá el diálogo y volvé a intentarlo.</div><div class="dialog-actions"><button type="button" class="button button-outline" data-action="dialog-cancel">Cerrar</button></div>`; }

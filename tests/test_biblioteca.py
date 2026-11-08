@@ -3,7 +3,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from biblioteca import Biblioteca, ReglaNegocio
+from backend import Biblioteca, ReglaNegocio
+from backend.daos.evento_remito_dao import EventoRemitoDAO
+from backend.daos.remito_dao import RemitoDAO
+from backend.models.fabrica_prestamos import FabricaPrestamos
+from backend.models.prestamo import PrestamoInterbibliotecario, PrestamoLocal
+from backend.models.remito import Remito
 
 
 class TestBiblioteca(TestCase):
@@ -139,3 +144,46 @@ class TestBiblioteca(TestCase):
         otra_instancia = Biblioteca(b.db.ruta)
         assert len(otra_instancia.historial_remito(remito)) == 4
         assert otra_instancia.listar("prestamos")[0]["estado"] == "ACTIVO"
+
+    def test_patron_factory_fabrica_prestamos(self):
+        local = FabricaPrestamos.crear(socio_id=1, ejemplar_id=10, origen=1, destino=1)
+        inter = FabricaPrestamos.crear(socio_id=1, ejemplar_id=10, origen=1, destino=2)
+        self.assertIsInstance(local, PrestamoLocal)
+        self.assertEqual(local.tipo, "LOCAL")
+        self.assertFalse(local.requiere_remito)
+        self.assertIsInstance(inter, PrestamoInterbibliotecario)
+        self.assertEqual(inter.tipo, "INTERBIBLIOTECARIO")
+        self.assertTrue(inter.requiere_remito)
+
+    def test_patron_observer_remito_y_evento_remito_dao(self):
+        b, origen, destino, socio, _libro, ejemplar = self.red
+        t0 = datetime(2026, 10, 1, 10)
+        b.solicitar_prestamo(socio, ejemplar, origen, destino, fecha=t0)
+        remito_id = b.listar("remitos")[0]["id"]
+
+        notificaciones_memoria = []
+
+        class ObservadorNotificaciones:
+            def actualizar(self, r_id: int, estado: str, fecha: str, detalle: str) -> None:
+                notificaciones_memoria.append((r_id, estado, detalle))
+
+        with b.db.conexion() as con:
+            remito = RemitoDAO(con).obtener_por_id(remito_id)
+            remito.suscribir(EventoRemitoDAO(con))
+            remito.suscribir(ObservadorNotificaciones())
+            remito.avanzar("EMPAQUETADO", t0 + timedelta(hours=1), "Empaque verificado")
+            RemitoDAO(con).actualizar(remito)
+
+        self.assertEqual(notificaciones_memoria, [(remito_id, "EMPAQUETADO", "Empaque verificado")])
+        self.assertEqual([e["estado"] for e in b.historial_remito(remito_id)], ["CREADO", "EMPAQUETADO"])
+
+        with self.assertRaises(RuntimeError):
+            with b.db.conexion() as con:
+                remito = RemitoDAO(con).obtener_por_id(remito_id)
+                remito.suscribir(EventoRemitoDAO(con))
+                remito.avanzar("DESPACHADO", t0 + timedelta(hours=2), "Intento fallido")
+                RemitoDAO(con).actualizar(remito)
+                raise RuntimeError("Fallo simulado en la transacción")
+
+        self.assertEqual(b.listar("remitos")[0]["estado"], "EMPAQUETADO")
+        self.assertEqual([e["estado"] for e in b.historial_remito(remito_id)], ["CREADO", "EMPAQUETADO"])

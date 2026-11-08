@@ -1,9 +1,10 @@
-"""Interfaz de consola: python -m biblioteca --help."""
+"""Interfaz de consola: python -m backend --help."""
 
 import argparse
 import json
 
-from .servicio import Biblioteca, ReglaNegocio
+from .models.excepciones import ReglaNegocio
+from .services.biblioteca_service import Biblioteca
 
 
 def construir_parser():

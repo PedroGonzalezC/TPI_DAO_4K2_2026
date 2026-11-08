@@ -2,23 +2,279 @@
 
 ## Alcance y fuentes
 
-Se implementaron los ocho procesos obligatorios y todas las validaciones indicadas en `Tema1 - Biblioteca.pdf`. Se siguieron los apuntes de la cátedra sobre clases, patrones de diseño, pruebas, SQLite y objetos de acceso a datos. No se asumieron requisitos de interfaz web ni de despliegue porque el enunciado no los establece.
+Se implementaron los ocho procesos obligatorios y todas las validaciones indicadas en `Tema1 - Biblioteca.pdf`. Se siguieron los apuntes de la cátedra sobre arquitectura en capas, clases de dominio, patrones de diseño, pruebas, FastAPI, SQLite y objetos de acceso a datos (DAO).
 
-## Modelo conceptual
+## Arquitectura en capas
+
+1. **Presentación (`frontend/`):** Frontend web encargado de mostrar la información y permitir la interacción de los usuarios mediante llamadas REST.
+2. **Controllers (`backend/controllers/`):** Implementados en archivos separados por recurso (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `reporte_controller.py`). Reciben solicitudes HTTP, validan la estructura con esquemas Pydantic (`schemas.py`), identifican al usuario y comprueban su autorización por rol (`dependencias.py`), invocan los servicios correspondientes y traducen excepciones de negocio (`app.py`).
+3. **Services (`backend/services/`):** Un archivo por servicio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `reporte_service.py`, `biblioteca_service.py`). Validan reglas del dominio, coordinan operaciones multi-DAO dentro de una misma transacción, utilizan entidades y patrones, y mantienen la coherencia entre solicitudes, préstamos, ejemplares, reservas y remitos.
+4. **Dominio / Models (`backend/models/`):** Un archivo por entidad (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `excepciones.py`) que encapsula datos, comportamientos propios y patrones (`FabricaPrestamos`, `ObservadorRemito`) sin código SQL ni dependencia de FastAPI.
+5. **Persistencia / DAO (`backend/daos/`):** Un archivo por DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`), sin lógica de negocio ni decisiones de autorización.
+6. **Base de datos (`backend/database/`):** Esquema relacional SQLite (`esquema.py`) y gestor transaccional de conexiones (`conexion.py`).
+
+## Diagrama Entidad-Relación (DER) y Modelo de Datos
 
 ```mermaid
 erDiagram
-    SEDE ||--o{ EJEMPLAR : pertenece
-    SEDE ||--o{ PRESTAMO : origen
-    SEDE ||--o{ PRESTAMO : destino
-    SEDE ||--o{ REMITO : origen_destino
-    SOCIO ||--o{ PRESTAMO : solicita
-    SOCIO ||--o{ RESERVA : realiza
-    LIBRO ||--o{ EJEMPLAR : tiene
-    LIBRO ||--o{ RESERVA : se_reserva
-    EJEMPLAR ||--o{ PRESTAMO : participa
-    PRESTAMO ||--o{ REMITO : genera
-    REMITO ||--o{ HISTORIAL_REMITO : registra
+    SEDES ||--o{ EJEMPLARES : "pertenece (sede_pertenencia_id)"
+    SEDES ||--o{ EJEMPLARES : "se ubica en (sede_actual_id)"
+    SEDES ||--o{ RESERVAS : "retiro en (sede_id)"
+    SEDES ||--o{ PRESTAMOS : "origen (sede_origen_id)"
+    SEDES ||--o{ PRESTAMOS : "destino (sede_destino_id)"
+    SEDES ||--o{ REMITOS : "origen (origen_id)"
+    SEDES ||--o{ REMITOS : "destino (destino_id)"
+
+    SOCIOS ||--o{ RESERVAS : "realiza (socio_id)"
+    SOCIOS ||--o{ PRESTAMOS : "solicita (socio_id)"
+
+    LIBROS ||--o{ EJEMPLARES : "tiene copias (libro_id)"
+    LIBROS ||--o{ RESERVAS : "se reserva (libro_id)"
+
+    EJEMPLARES ||--o{ RESERVAS : "asignado a (ejemplar_id)"
+    EJEMPLARES ||--o{ PRESTAMOS : "se presta en (ejemplar_id)"
+    EJEMPLARES ||--o{ REMITOS : "trasladado en (ejemplar_id)"
+
+    PRESTAMOS ||--o{ REMITOS : "genera (prestamo_id)"
+    REMITOS ||--o{ HISTORIAL_REMITOS : "registra evento (remito_id)"
+
+    SEDES {
+        INTEGER id PK
+        TEXT nombre UK
+        TEXT direccion
+        TEXT contacto
+        TEXT horarios
+        INTEGER activa
+    }
+
+    SOCIOS {
+        INTEGER id PK
+        TEXT documento UK
+        TEXT nombre
+        TEXT email
+        INTEGER habilitado
+    }
+
+    LIBROS {
+        INTEGER id PK
+        TEXT isbn UK
+        TEXT titulo
+        TEXT autor
+        INTEGER anio
+    }
+
+    EJEMPLARES {
+        INTEGER id PK
+        TEXT codigo UK
+        INTEGER libro_id FK
+        INTEGER sede_pertenencia_id FK
+        INTEGER sede_actual_id FK
+        TEXT estado
+    }
+
+    RESERVAS {
+        INTEGER id PK
+        INTEGER socio_id FK
+        INTEGER libro_id FK
+        INTEGER sede_id FK
+        INTEGER ejemplar_id FK
+        TEXT estado
+        TEXT creada_en
+    }
+
+    PRESTAMOS {
+        INTEGER id PK
+        INTEGER socio_id FK
+        INTEGER ejemplar_id FK
+        INTEGER sede_origen_id FK
+        INTEGER sede_destino_id FK
+        TEXT tipo
+        TEXT estado
+        TEXT solicitado_en
+        TEXT entregado_en
+        TEXT vence_en
+        TEXT devuelto_en
+        TEXT condicion_devolucion
+        INTEGER multa_centavos
+    }
+
+    REMITOS {
+        INTEGER id PK
+        INTEGER prestamo_id FK
+        INTEGER ejemplar_id FK
+        TEXT tipo
+        INTEGER origen_id FK
+        INTEGER destino_id FK
+        TEXT estado
+        TEXT creado_en
+        TEXT recibido_en
+    }
+
+    HISTORIAL_REMITOS {
+        INTEGER id PK
+        INTEGER remito_id FK
+        TEXT estado
+        TEXT fecha
+        TEXT detalle
+    }
+```
+
+## Diagrama de Clases (Dominio, Patrones, Services y DAOs)
+
+```mermaid
+classDiagram
+    class Sede {
+        +int id
+        +str nombre
+        +str direccion
+        +str contacto
+        +str horarios
+        +bool activa
+        +asegurar_activa() void
+        +actualizar(direccion, contacto, horarios, activa) void
+    }
+
+    class Socio {
+        +int id
+        +str documento
+        +str nombre
+        +str email
+        +bool habilitado
+        +asegurar_habilitado() void
+        +actualizar(nombre, email, habilitado) void
+    }
+
+    class Material {
+        +int id
+        +str isbn
+        +str titulo
+        +str autor
+        +int anio
+        +actualizar(titulo, autor, anio) void
+    }
+
+    class Ejemplar {
+        +int id
+        +str codigo
+        +int libro_id
+        +int sede_pertenencia_id
+        +int sede_actual_id
+        +str estado
+        +esta_disponible bool
+        +asegurar_en_sede_origen(sede_origen_id) void
+        +apartar() void
+        +reservar() void
+        +liberar() void
+        +prestar() void
+        +despachar() void
+        +recibir_en(sede_destino_id, estado_final) void
+        +cerrar_revision(apto) void
+    }
+
+    class Reserva {
+        +int id
+        +int socio_id
+        +int libro_id
+        +int sede_id
+        +int ejemplar_id
+        +str estado
+        +str creada_en
+        +asegurar_corresponde_a_solicitud(socio_id, sede_destino_id) void
+        +asignar(ejemplar_id) void
+        +cumplir() void
+        +cancelar() int
+    }
+
+    class Prestamo {
+        <<abstract>>
+        +int id
+        +int socio_id
+        +int ejemplar_id
+        +int sede_origen_id
+        +int sede_destino_id
+        +str estado
+        +str solicitado_en
+        +str entregado_en
+        +str vence_en
+        +str devuelto_en
+        +str condicion_devolucion
+        +int multa_centavos
+        +tipo* str
+        +requiere_remito bool
+        +estado_requerido_entrega str
+        +marcar_en_transito() void
+        +marcar_listo() void
+        +entregar(ahora, fecha_minima_iso, plazo_dias) str
+        +devolver(ahora, condicion, multa_diaria_centavos) tuple
+        +estado_ejemplar_al_recibir_retorno() str
+    }
+
+    class PrestamoLocal {
+        +tipo str
+    }
+
+    class PrestamoInterbibliotecario {
+        +tipo str
+    }
+
+    class FabricaPrestamos {
+        <<Factory>>
+        +crear(socio_id, ejemplar_id, origen, destino, solicitado_en)$ Prestamo
+        +reconstruir(...)$ Prestamo
+    }
+
+    class ObservadorRemito {
+        <<interface>>
+        +actualizar(remito_id, estado, fecha, detalle) void
+    }
+
+    class Remito {
+        +int id
+        +str estado
+        +int prestamo_id
+        +int ejemplar_id
+        +str tipo
+        +int origen_id
+        +int destino_id
+        +str creado_en
+        +str recibido_en
+        +list~ObservadorRemito~ observadores
+        +suscribir(observador) void
+        +notificar(estado, fecha_iso, detalle) void
+        +registrar_creacion(fecha, detalle) void
+        +requiere_sedes_activas(nuevo_estado) bool
+        +avanzar(nuevo_estado, fecha, detalle, ultima_fecha_iso) void
+    }
+
+    class EventoRemito {
+        +int id
+        +int remito_id
+        +str estado
+        +str fecha
+        +str detalle
+    }
+
+    class EventoRemitoDAO {
+        +Connection con
+        +registrar(evento) int
+        +actualizar(remito_id, estado, fecha, detalle) void
+        +obtener_ultimo_por_remito(remito_id) EventoRemito
+        +listar_por_remito(remito_id) list
+    }
+
+    Prestamo <|-- PrestamoLocal
+    Prestamo <|-- PrestamoInterbibliotecario
+    FabricaPrestamos ..> PrestamoLocal : instancia
+    FabricaPrestamos ..> PrestamoInterbibliotecario : instancia
+    Remito o--> ObservadorRemito : notifica
+    ObservadorRemito <|.. EventoRemitoDAO : implementa
+    EventoRemitoDAO ..> EventoRemito : persiste
+    Material "1" <-- "*" Ejemplar : cataloga
+    Sede "1" <-- "*" Ejemplar : pertenece / ubica
+    Socio "1" <-- "*" Reserva : solicita
+    Socio "1" <-- "*" Prestamo : titular
+    Ejemplar "1" <-- "*" Prestamo : objeto de
+    Prestamo "1" <-- "0..2" Remito : traslada
 ```
 
 - **Sede:** nombre único, dirección, contacto, horarios y estado activo/baja.
