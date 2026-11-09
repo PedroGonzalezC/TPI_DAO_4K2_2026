@@ -64,6 +64,21 @@ class EjemplarDAO:
             (ejemplar.sede_actual_id, ejemplar.estado, ejemplar.condicion, ejemplar.id),
         )
 
+    def tiene_historial(self, ejemplar_id: int) -> bool:
+        prestamos = self.con.execute(
+            "SELECT 1 FROM prestamos WHERE ejemplar_id=? LIMIT 1", (ejemplar_id,)
+        ).fetchone()
+        remitos = self.con.execute(
+            "SELECT 1 FROM remitos WHERE ejemplar_id=? LIMIT 1", (ejemplar_id,)
+        ).fetchone()
+        reservas = self.con.execute(
+            "SELECT 1 FROM reservas WHERE ejemplar_id=? LIMIT 1", (ejemplar_id,)
+        ).fetchone()
+        return prestamos is not None or remitos is not None or reservas is not None
+
+    def eliminar(self, ejemplar_id: int) -> None:
+        self.con.execute("DELETE FROM ejemplares WHERE id=?", (ejemplar_id,))
+
     def consultar_disponibilidad(self, sede_id: int | None = None) -> list[dict]:
         return [
             dict(fila)

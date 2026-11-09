@@ -60,6 +60,18 @@ class CatalogoService:
 
     actualizar_libro = actualizar_material
 
+    def eliminar_material(self, libro_id: int) -> None:
+        with self.db.conexion() as con:
+            self.obtener_material_existente(con, libro_id)
+            material_dao = MaterialDAO(con)
+            if material_dao.tiene_dependencias(libro_id):
+                raise ReglaNegocio(
+                    "No se puede eliminar un libro que posee ejemplares o reservas asociadas"
+                )
+            material_dao.eliminar(libro_id)
+
+    eliminar_libro = eliminar_material
+
     def listar_materiales(self) -> list[dict]:
         with self.db.conexion() as con:
             return MaterialDAO(con).listar()
@@ -102,3 +114,18 @@ class CatalogoService:
             ejemplar_dao.actualizar(ejemplar)
             if apto:
                 self.reserva_service.asignar_si_corresponde(con, ejemplar_id)
+
+    def eliminar_ejemplar(self, ejemplar_id: int) -> str:
+        with self.db.conexion() as con:
+            ejemplar_dao = EjemplarDAO(con)
+            ejemplar = self.obtener_ejemplar_existente(con, ejemplar_id)
+            if ejemplar.estado not in {"DISPONIBLE", "BAJA", "EN_REVISION"}:
+                raise ReglaNegocio(
+                    "No se puede eliminar ni dar de baja un ejemplar comprometido en préstamos, traslados o reservas"
+                )
+            if ejemplar_dao.tiene_historial(ejemplar_id):
+                ejemplar.dar_de_baja()
+                ejemplar_dao.actualizar(ejemplar)
+                return "baja_logica"
+            ejemplar_dao.eliminar(ejemplar_id)
+            return "eliminado"

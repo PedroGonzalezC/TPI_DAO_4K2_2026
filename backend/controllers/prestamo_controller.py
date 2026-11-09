@@ -70,3 +70,15 @@ def devolver_prestamo(
 ):
     multa = servicio.devolver_prestamo(prestamo_id, datos.condicion)
     return {"multa_centavos": multa, "resultado": {"multa_centavos": multa}}
+
+
+@router.post("/prestamos/{prestamo_id}/cancelar")
+@router.delete("/prestamos/{prestamo_id}")
+@router.delete("/solicitudes/{prestamo_id}")
+def cancelar_prestamo(
+    prestamo_id: Annotated[int, PathParam(gt=0)],
+    _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_OPERACION_SOCIO))],
+    servicio: Annotated[PrestamoService, Depends(obtener_prestamo_service)],
+):
+    servicio.cancelar_prestamo(prestamo_id)
+    return {"resultado": "ok"}

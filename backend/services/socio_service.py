@@ -60,3 +60,18 @@ class SocioService:
     def listar_socios(self) -> list[dict]:
         with self.db.conexion() as con:
             return SocioDAO(con).listar()
+
+    def eliminar_socio(self, socio_id: int) -> str:
+        with self.db.conexion() as con:
+            socio_dao = SocioDAO(con)
+            socio = self.obtener_existente(con, socio_id)
+            if socio_dao.tiene_prestamos_activos(socio_id):
+                raise ReglaNegocio(
+                    "No se puede dar de baja ni eliminar un socio con préstamos en curso"
+                )
+            if socio_dao.tiene_historial(socio_id):
+                socio.actualizar(habilitado=False)
+                socio_dao.actualizar(socio)
+                return "baja_logica"
+            socio_dao.eliminar(socio_id)
+            return "eliminado"

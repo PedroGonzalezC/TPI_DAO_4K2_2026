@@ -39,5 +39,17 @@ class MaterialDAO:
             (material.titulo, material.autor, material.anio, material.id),
         )
 
+    def tiene_dependencias(self, libro_id: int) -> bool:
+        ejemplares = self.con.execute(
+            "SELECT 1 FROM ejemplares WHERE libro_id=? LIMIT 1", (libro_id,)
+        ).fetchone()
+        reservas = self.con.execute(
+            "SELECT 1 FROM reservas WHERE libro_id=? LIMIT 1", (libro_id,)
+        ).fetchone()
+        return ejemplares is not None or reservas is not None
+
+    def eliminar(self, libro_id: int) -> None:
+        self.con.execute("DELETE FROM libros WHERE id=?", (libro_id,))
+
 
 LibroDAO = MaterialDAO

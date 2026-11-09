@@ -49,3 +49,13 @@ def actualizar_socio(
         habilitado=datos.habilitado,
     )
     return {"resultado": "ok"}
+
+
+@router.delete("/{socio_id}")
+def eliminar_socio(
+    socio_id: Annotated[int, PathParam(gt=0)],
+    _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_GESTION))],
+    servicio: Annotated[SocioService, Depends(obtener_socio_service)],
+):
+    accion = servicio.eliminar_socio(socio_id)
+    return {"resultado": accion}

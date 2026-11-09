@@ -223,5 +223,34 @@ class TestBiblioteca(TestCase):
         self.assertTrue(b.listar("socios")[0]["habilitado"])
         nuevo_prestamo = b.solicitar_prestamo(socio, otro_ejemplar, origen, origen, fecha=t0 + timedelta(days=4))
         self.assertTrue(nuevo_prestamo > 0)
+
+    def test_reserva_se_cumple_al_solicitar_otro_ejemplar_del_mismo_libro(self):
+        b, origen, _destino, socio, libro, ejemplar_1 = self.red
+        ejemplar_2 = b.crear_ejemplar("E-002", libro, origen)
+        b.reservar(socio, libro, origen, fecha=datetime(2026, 10, 1))
+        self.assertEqual(b.listar("reservas")[0]["estado"], "ASIGNADA")
+        self.assertEqual(b.listar("reservas")[0]["ejemplar_id"], ejemplar_1)
+        b.solicitar_prestamo(socio, ejemplar_2, origen, origen, fecha=datetime(2026, 10, 2))
+        self.assertEqual(b.listar("reservas")[0]["estado"], "CUMPLIDA")
+        self.assertEqual(b.listar("ejemplares")[0]["estado"], "DISPONIBLE")
+        self.assertEqual(b.listar("ejemplares")[1]["estado"], "APARTADO")
+
+    def test_cancelar_prestamo_y_bajas_delete(self):
+        b, origen, destino, socio, libro, ejemplar = self.red
+        p = b.solicitar_prestamo(socio, ejemplar, origen, destino, fecha=datetime(2026, 10, 1))
+        self.assertEqual(len(b.listar("remitos")), 1)
+        b.cancelar_prestamo(p)
+        self.assertEqual(b.listar("prestamos")[0]["estado"], "CANCELADO")
+        self.assertEqual(b.listar("ejemplares")[0]["estado"], "DISPONIBLE")
+        self.assertEqual(len(b.listar("remitos")), 0)
+
+        libro_sin_copias = b.crear_libro("9789870009999", "Libro Temporal", "Autor", 2025)
+        b.eliminar_libro(libro_sin_copias)
+        self.assertEqual(len(b.listar("libros")), 1)
+        with self.assertRaises(ReglaNegocio):
+            b.eliminar_libro(libro)
+
+        self.assertEqual(b.eliminar_ejemplar(ejemplar), "baja_logica")
+        self.assertEqual(b.listar("ejemplares")[0]["estado"], "BAJA")
         pass
         self.assertTrue(True)

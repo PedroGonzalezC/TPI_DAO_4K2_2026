@@ -129,6 +129,21 @@ class Biblioteca:
     def devolver_prestamo(self, prestamo_id, condicion="BUENO", *, fecha=None):
         return self.prestamos.devolver_prestamo(prestamo_id, condicion, fecha=fecha)
 
+    def cancelar_prestamo(self, prestamo_id):
+        return self.prestamos.cancelar_prestamo(prestamo_id)
+
+    def eliminar_libro(self, libro_id):
+        return self.catalogo.eliminar_material(libro_id)
+
+    def eliminar_ejemplar(self, ejemplar_id):
+        return self.catalogo.eliminar_ejemplar(ejemplar_id)
+
+    def eliminar_sede(self, sede_id):
+        return self.sedes.eliminar_sede(sede_id)
+
+    def eliminar_socio(self, socio_id):
+        return self.socios.eliminar_socio(socio_id)
+
     def pagar_multa(self, multa_id, *, fecha=None):
         return self.multas.pagar_multa(multa_id, fecha=fecha)
 

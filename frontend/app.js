@@ -155,6 +155,11 @@ function buildRestCall(payload) {
   if (accion === 'entregar_prestamo') return ['POST', `/api/prestamos/${Number(rest.id)}/entregar`, null];
   if (accion === 'devolver_prestamo') return ['POST', `/api/prestamos/${Number(rest.id)}/devolver`, { condicion: rest.condicion }];
   if (accion === 'pagar_multa') return ['POST', `/api/multas/${Number(rest.id)}/pagar`, null];
+  if (accion === 'cancelar_prestamo') return ['DELETE', `/api/prestamos/${Number(rest.id)}`, null];
+  if (accion === 'eliminar_libro') return ['DELETE', `/api/libros/${Number(rest.id)}`, null];
+  if (accion === 'eliminar_ejemplar') return ['DELETE', `/api/ejemplares/${Number(rest.id)}`, null];
+  if (accion === 'eliminar_sede') return ['DELETE', `/api/sedes/${Number(rest.id)}`, null];
+  if (accion === 'eliminar_socio') return ['DELETE', `/api/socios/${Number(rest.id)}`, null];
   if (accion === 'avanzar_remito') return ['POST', `/api/remitos/${Number(rest.id)}/avanzar`, { estado: rest.estado, detalle: rest.detalle || '' }];
   throw new Error('Operación desconocida');
 }
@@ -181,7 +186,7 @@ function notify(message, tone = 'success') {
   toastTimer = setTimeout(() => { toast.hidden = true; }, 4800);
 }
 
-function table({ id, title, data, columns, actions, empty = 'Todavía no hay registros.', search = true }) {
+function table({ id, title, data, columns, actions, tools = '', empty = 'Todavía no hay registros.', search = true }) {
   const p = params();
   const q = p.get(`${id}_q`) || '';
   const sort = p.get(`${id}_sort`) || columns[0].key;
@@ -201,7 +206,7 @@ function table({ id, title, data, columns, actions, empty = 'Todavía no hay reg
   const shown = filtered.slice((page - 1) * 10, page * 10);
   const searchBox = search ? `<div class="search-wrap"><label class="sr-only" for="search-${id}">Buscar en ${esc(title)}</label><input id="search-${id}" type="search" value="${esc(q)}" placeholder="Buscar registros" data-search="${esc(id)}" autocomplete="off">${q ? actionButton('×', 'search-clear', id, 'clear') : ''}</div>` : '';
   const tableMarkup = shown.length ? `<div class="table-scroll"><table><thead><tr>${columns.map(c => `<th scope="col" ${sort === c.key ? `aria-sort="${direction === 1 ? 'ascending' : 'descending'}"` : ''}>${actionButton(`${c.label} ${sort === c.key ? (direction === 1 ? '↑' : '↓') : '↕'}`, 'table-sort', `${id}|${c.key}`, 'sort')}</th>`).join('')}${actions ? '<th scope="col">Acciones</th>' : ''}</tr></thead><tbody>${shown.map(row => `<tr>${columns.map(c => `<td>${c.render ? c.render(row) : esc(row[c.key] ?? '—')}</td>`).join('')}${actions ? `<td><div class="actions">${actions(row)}</div></td>` : ''}</tr>`).join('')}</tbody></table></div>` : `<div class="table-empty"><strong>${q ? 'Sin resultados' : 'Sin registros aún'}</strong><p>${esc(q ? 'Probá con otra búsqueda o limpiá el filtro.' : empty)}</p>${q ? actionButton('Limpiar búsqueda', 'search-clear', id, 'outline') : ''}</div>`;
-  return `<section class="table-panel" aria-label="${esc(title)}"><div class="table-toolbar"><h2>${esc(title)}</h2><div class="table-tools">${searchBox}</div></div>${tableMarkup}<div class="table-footer"><span>${total ? `${(page - 1) * 10 + 1}–${Math.min(page * 10, total)} de ${total}` : '0 registros'}</span><div class="pager">${actionButton('Anterior', 'table-page', `${id}|${page - 1}`, 'pager', page <= 1)}<span>Página ${page} de ${pages}</span>${actionButton('Siguiente', 'table-page', `${id}|${page + 1}`, 'pager', page >= pages)}</div></div></section>`;
+  return `<section class="table-panel" aria-label="${esc(title)}"><div class="table-toolbar"><h2>${esc(title)}</h2><div class="table-tools">${tools}${searchBox}</div></div>${tableMarkup}<div class="table-footer"><span>${total ? `${(page - 1) * 10 + 1}–${Math.min(page * 10, total)} de ${total}` : '0 registros'}</span><div class="pager">${actionButton('Anterior', 'table-page', `${id}|${page - 1}`, 'pager', page <= 1)}<span>Página ${page} de ${pages}</span>${actionButton('Siguiente', 'table-page', `${id}|${page + 1}`, 'pager', page >= pages)}</div></div></section>`;
 }
 
 function dashboard() {
@@ -222,8 +227,14 @@ function dashboard() {
 }
 
 function loansView() {
+
+  const verTodos = params().get('prestamos_filtro') === 'todos';
+  const todos = rows('prestamos');
+  const activos = todos.filter(r => !['DEVUELTO', 'CANCELADO'].includes(r.estado));
+  const filtroTools = `${actionButton(`Activos (${activos.length})`, 'loan-filter', 'activos', verTodos ? 'outline' : 'primary')}${actionButton(`Todos (${todos.length})`, 'loan-filter', 'todos', verTodos ? 'primary' : 'outline')}`;
   return `${header('CIRCULACIÓN', 'Préstamos', 'Solicitudes locales y entre sedes, entregas y devoluciones.', button('Solicitar préstamo', 'loan-new'))}
-    ${table({ id: 'prestamos', title: 'Registro de préstamos', data: rows('prestamos'), columns: [
+
+    ${table({ id: 'prestamos', title: verTodos ? 'Registro completo de préstamos' : 'Préstamos en circulación', tools: filtroTools, data: verTodos ? todos : activos, columns: [
       { key: 'id', label: 'N.º', render: r => `<span class="mono">P-${String(r.id).padStart(3, '0')}</span>` },
       { key: 'ejemplar_id', label: 'Material', raw: r => bookOfCopy(r.ejemplar_id), render: r => `<span class="cell-title">${esc(bookOfCopy(r.ejemplar_id))}</span><span class="cell-sub mono">${esc(nameOf('ejemplares', r.ejemplar_id, 'codigo'))}</span>` },
       { key: 'socio_id', label: 'Socio', raw: r => nameOf('socios', r.socio_id), render: r => esc(nameOf('socios', r.socio_id)) },
@@ -231,7 +242,7 @@ function loansView() {
       { key: 'tipo', label: 'Tipo', render: r => esc(LABELS[r.tipo] || r.tipo) },
       { key: 'estado', label: 'Estado', render: r => badge(r.estado) },
       { key: 'vence_en', label: 'Vence', render: r => `${dateText(r.vence_en)}<span class="cell-sub">${esc(r.plazo_dias || 14)} días</span>` },
-    ], actions: r => `${(r.estado === 'SOLICITADO' && r.tipo === 'LOCAL') || r.estado === 'LISTO' ? actionButton('Entregar', 'loan-deliver', r.id) : ''}${r.estado === 'ACTIVO' ? actionButton('Devolver', 'loan-return', r.id) : ''}${!['SOLICITADO', 'LISTO', 'ACTIVO'].includes(r.estado) ? '<span class="cell-sub">Sin acciones</span>' : ''}`, empty: 'Una solicitud crea el primer préstamo.' })}`;
+    ], actions: r => `${(r.estado === 'SOLICITADO' && r.tipo === 'LOCAL') || r.estado === 'LISTO' ? actionButton('Entregar', 'loan-deliver', r.id) : ''}${r.estado === 'SOLICITADO' ? actionButton('Cancelar', 'loan-cancel', r.id) : ''}${r.estado === 'ACTIVO' ? actionButton('Devolver', 'loan-return', r.id) : ''}${!['SOLICITADO', 'LISTO', 'ACTIVO'].includes(r.estado) ? '<span class="cell-sub">Sin acciones</span>' : ''}`, empty: 'No hay préstamos en curso ni solicitudes pendientes.' })}`;
 }
 
 function remitosView() {
@@ -254,7 +265,7 @@ function catalogView() {
         { key: 'isbn', label: 'ISBN', render: r => `<span class="mono">${esc(r.isbn)}</span>` },
         { key: 'anio', label: 'Año', render: r => esc(r.anio || '—') },
         { key: 'id', label: 'Ejemplares', raw: r => rows('ejemplares').filter(e => e.libro_id === r.id).length, render: r => esc(rows('ejemplares').filter(e => e.libro_id === r.id).length) },
-      ], actions: r => actionButton('Editar', 'book-edit', r.id), empty: 'Agregá un libro para comenzar el catálogo.' })}
+      ], actions: r => `${actionButton('Editar', 'book-edit', r.id)}${rows('ejemplares').some(e => e.libro_id === r.id) ? '' : actionButton('Eliminar', 'book-delete', r.id)}`, empty: 'Agregá un libro para comenzar el catálogo.' })}
       ${table({ id: 'ejemplares', title: 'Ejemplares físicos', data: rows('ejemplares'), columns: [
         { key: 'codigo', label: 'Código', render: r => `<span class="mono">${esc(r.codigo)}</span>` },
         { key: 'libro_id', label: 'Libro', raw: r => nameOf('libros', r.libro_id, 'titulo'), render: r => esc(nameOf('libros', r.libro_id, 'titulo')) },
@@ -262,7 +273,7 @@ function catalogView() {
         { key: 'sede_actual_id', label: 'Última sede', raw: r => nameOf('sedes', r.sede_actual_id), render: r => esc(nameOf('sedes', r.sede_actual_id)) },
         { key: 'condicion', label: 'Condición', raw: r => LABELS[r.condicion || 'BUENO'] || r.condicion, render: r => badge(r.condicion || 'BUENO') },
         { key: 'estado', label: 'Estado', render: r => badge(r.estado) },
-      ], actions: r => r.estado === 'EN_REVISION' ? `${actionButton('Apto', 'copy-fit', r.id)}${actionButton('Dar de baja', 'copy-unfit', r.id)}` : '<span class="cell-sub">Sin acciones</span>', empty: 'Agregá ejemplares para consultar disponibilidad.' })}
+      ], actions: r => r.estado === 'EN_REVISION' ? `${actionButton('Apto', 'copy-fit', r.id)}${actionButton('Dar de baja', 'copy-unfit', r.id)}` : r.estado === 'DISPONIBLE' ? actionButton('Dar de baja', 'copy-delete', r.id) : '<span class="cell-sub">Sin acciones</span>', empty: 'Agregá ejemplares para consultar disponibilidad.' })}
     </div>`;
 }
 
@@ -273,9 +284,10 @@ function reservasView() {
       { key: 'libro_id', label: 'Libro', raw: r => nameOf('libros', r.libro_id, 'titulo'), render: r => `<span class="cell-title">${esc(nameOf('libros', r.libro_id, 'titulo'))}</span>` },
       { key: 'socio_id', label: 'Socio', raw: r => nameOf('socios', r.socio_id), render: r => esc(nameOf('socios', r.socio_id)) },
       { key: 'sede_id', label: 'Retiro', raw: r => nameOf('sedes', r.sede_id), render: r => esc(nameOf('sedes', r.sede_id)) },
+      { key: 'ejemplar_id', label: 'Ejemplar', raw: r => r.ejemplar_id ? nameOf('ejemplares', r.ejemplar_id, 'codigo') : '', render: r => r.ejemplar_id ? `<span class="mono">${esc(nameOf('ejemplares', r.ejemplar_id, 'codigo'))}</span>` : '<span class="cell-sub">En espera</span>' },
       { key: 'creada_en', label: 'Solicitada', render: r => dateText(r.creada_en) },
       { key: 'estado', label: 'Estado', render: r => badge(r.estado) },
-    ], actions: r => ['EN_ESPERA', 'ASIGNADA'].includes(r.estado) ? actionButton('Cancelar', 'reserve-cancel', r.id) : '<span class="cell-sub">Cerrada</span>', empty: 'Creá una reserva para que el sistema asigne el próximo ejemplar disponible.' })}`;
+    ], actions: r => `${r.estado === 'ASIGNADA' ? actionButton('Solicitar préstamo', 'reserve-loan', r.id) : ''}${['EN_ESPERA', 'ASIGNADA'].includes(r.estado) ? actionButton('Cancelar', 'reserve-cancel', r.id) : '<span class="cell-sub">Cerrada</span>'}`, empty: 'Creá una reserva para que el sistema asigne el próximo ejemplar disponible.' })}`;
 }
 
 function sociosView() {
@@ -494,6 +506,16 @@ function dispatchAction(action, id) {
     { name: 'sede_id', label: 'Sede de retiro', options: activeBranches, required: true },
   ] });
   if (action === 'reserve-cancel' && reservation) return openConfirm({ title: 'Cancelar reserva', description: 'Si tenía un ejemplar asignado, se ofrecerá a la siguiente persona de la cola.', object: `${nameOf('libros', reservation.libro_id, 'titulo')} · ${nameOf('socios', reservation.socio_id)}`, verb: 'Cancelar reserva', action: 'cancelar_reserva', payload: { id: reservation.id }, success: 'Reserva cancelada.' });
+  if (action === 'reserve-loan' && reservation) {
+    const assignedCopy = byId('ejemplares', reservation.ejemplar_id);
+    return openForm({ title: 'Solicitar préstamo desde reserva', description: `Reserva #${reservation.id} · ${nameOf('libros', reservation.libro_id, 'titulo')}`, action: 'solicitar_prestamo', submit: 'Solicitar préstamo', success: result => `Préstamo P-${String(result).padStart(3, '0')} solicitado y reserva cumplida.`, fields: [
+      { name: 'socio_id', label: 'Socio', options: members, value: reservation.socio_id, required: true },
+      { name: 'ejemplar_id', label: 'Ejemplar', value: reservation.ejemplar_id, options: options('ejemplares', r => `${r.codigo} · ${nameOf('libros', r.libro_id, 'titulo')} · ${LABELS[r.estado] || r.estado} · ${LABELS[r.condicion || 'BUENO'] || r.condicion || 'Bueno'}`, r => ['DISPONIBLE', 'RESERVADO'].includes(r.estado)), required: true },
+      { name: 'sede_origen_id', label: 'Sede de origen', options: activeBranches, value: assignedCopy ? assignedCopy.sede_pertenencia_id : reservation.sede_id, required: true, help: 'Debe ser la sede de pertenencia del ejemplar.' },
+      { name: 'sede_destino_id', label: 'Sede de retiro', options: activeBranches, value: reservation.sede_id, required: true },
+      { name: 'plazo_dias', label: 'Duración del préstamo (días)', type: 'number', min: 1, value: 14, required: true, help: 'Cantidad de días corridos desde la entrega.' },
+    ] });
+  }
   if (action === 'loan-new') return openForm({ title: 'Solicitar préstamo', description: 'Seleccioná el ejemplar y las sedes. Si son distintas, se genera un remito de ida.', action: 'solicitar_prestamo', submit: 'Solicitar préstamo', success: result => `Préstamo P-${String(result).padStart(3, '0')} solicitado.`, fields: [
     { name: 'socio_id', label: 'Socio', options: members, required: true },
     { name: 'ejemplar_id', label: 'Ejemplar', options: options('ejemplares', r => `${r.codigo} · ${nameOf('libros', r.libro_id, 'titulo')} · ${LABELS[r.estado] || r.estado} · ${LABELS[r.condicion || 'BUENO'] || r.condicion || 'Bueno'}`, r => ['DISPONIBLE', 'RESERVADO'].includes(r.estado)), required: true },
@@ -502,6 +524,9 @@ function dispatchAction(action, id) {
     { name: 'plazo_dias', label: 'Duración del préstamo (días)', type: 'number', min: 1, value: 14, required: true, help: 'Cantidad de días corridos desde la entrega.' },
   ] });
   if (action === 'loan-deliver' && loan) return openConfirm({ title: 'Entregar préstamo', description: `La fecha de vencimiento se calculará a ${loan.plazo_dias || 14} días desde la entrega.`, object: `${bookOfCopy(loan.ejemplar_id)} · ${nameOf('socios', loan.socio_id)}`, verb: 'Entregar', action: 'entregar_prestamo', payload: { id: loan.id }, success: result => `Préstamo entregado. Vence el ${dateText(result.vence_en)}.`, danger: false });
+  if (action === 'loan-cancel' && loan) return openConfirm({ title: 'Cancelar solicitud de préstamo', description: 'El préstamo quedará cancelado antes de su entrega y el ejemplar volverá a estar disponible.', object: `P-${String(loan.id).padStart(3, '0')} · ${bookOfCopy(loan.ejemplar_id)} · ${nameOf('socios', loan.socio_id)}`, verb: 'Cancelar solicitud', action: 'cancelar_prestamo', payload: { id: loan.id }, success: 'Solicitud de préstamo cancelada.' });
+  if (action === 'book-delete' && book) return openConfirm({ title: 'Eliminar libro del catálogo', description: 'Se eliminará la ficha bibliográfica porque no tiene ejemplares asociados.', object: `${book.titulo} · ISBN ${book.isbn}`, verb: 'Eliminar libro', action: 'eliminar_libro', payload: { id: book.id }, success: 'Libro eliminado del catálogo.' });
+  if (action === 'copy-delete' && copy) return openConfirm({ title: 'Dar de baja o eliminar ejemplar', description: 'Si tiene historial de préstamos quedará dado de baja; si no tiene movimientos se eliminará físicamente.', object: `${copy.codigo} · ${bookOfCopy(copy.id)}`, verb: 'Confirmar baja', action: 'eliminar_ejemplar', payload: { id: copy.id }, success: res => res === 'eliminado' ? 'Ejemplar eliminado.' : 'Ejemplar dado de baja.' });
   if (action === 'loan-return' && loan) return openForm({ title: 'Registrar devolución', description: `${bookOfCopy(loan.ejemplar_id)} · ${nameOf('socios', loan.socio_id)}. Indicá el estado físico del material.`, action: 'devolver_prestamo', extra: { id: loan.id }, submit: 'Registrar devolución', success: result => result.multa_centavos > 0 ? `Devolución registrada. Multa pendiente: ${money(result.multa_centavos)} (socio inhabilitado hasta abonarla).` : 'Devolución registrada sin multa.', fields: [
     { name: 'condicion', label: 'Condición del ejemplar', required: true, value: 'BUENO', options: ['BUENO', 'DANADO', 'DESTRUIDO', 'EXTRAVIADO'].map(x => ({ value: x, label: LABELS[x] })), help: 'Dañado requiere revisión. Destruido o extraviado da de baja el ejemplar.' },
   ] });
@@ -544,6 +569,7 @@ document.addEventListener('click', event => {
       render(); return;
     }
     if (action.dataset.action === 'table-page') { const [id, page] = action.dataset.id.split('|'); setParams({ [`${id}_page`]: page }, true); render(); return; }
+    if (action.dataset.action === 'loan-filter') { setParams({ prestamos_filtro: action.dataset.id === 'todos' ? 'todos' : null, prestamos_page: 1 }, true); render(); return; }
     return dispatchAction(action.dataset.action, action.dataset.id);
   }
 });

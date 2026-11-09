@@ -72,6 +72,7 @@ erDiagram
         INTEGER sede_pertenencia_id FK
         INTEGER sede_actual_id FK
         TEXT estado
+        TEXT condicion
     }
 
     RESERVAS {
@@ -92,6 +93,7 @@ erDiagram
         INTEGER sede_destino_id FK
         TEXT tipo
         TEXT estado
+        INTEGER plazo_dias
         TEXT solicitado_en
         TEXT entregado_en
         TEXT vence_en
@@ -173,6 +175,7 @@ classDiagram
         +int sede_pertenencia_id
         +int sede_actual_id
         +str estado
+        +str condicion
         +esta_disponible bool
         +asegurar_en_sede_origen(sede_origen_id) void
         +apartar() void
@@ -182,6 +185,7 @@ classDiagram
         +despachar() void
         +recibir_en(sede_destino_id, estado_final) void
         +cerrar_revision(apto) void
+        +dar_de_baja() void
     }
 
     class Reserva {
@@ -206,6 +210,7 @@ classDiagram
         +int sede_origen_id
         +int sede_destino_id
         +str estado
+        +int plazo_dias
         +str solicitado_en
         +str entregado_en
         +str vence_en
@@ -217,6 +222,7 @@ classDiagram
         +estado_requerido_entrega str
         +marcar_en_transito() void
         +marcar_listo() void
+        +cancelar() void
         +entregar(ahora, fecha_minima_iso, plazo_dias) str
         +devolver(ahora, condicion, multa_diaria_centavos) tuple
         +estado_ejemplar_al_recibir_retorno() str
@@ -329,6 +335,7 @@ classDiagram
         +solicitar_prestamo(...) int
         +entregar_prestamo(...) str
         +devolver_prestamo(...) int
+        +cancelar_prestamo(prestamo_id) void
     }
 ```
 
@@ -369,10 +376,11 @@ Estados del ejemplar: `DISPONIBLE`, `APARTADO`, `RESERVADO`, `PRESTADO`, `EN_TRA
 | Sedes activas | Se verifican al reservar, solicitar y comenzar o despachar remitos. |
 | Propiedad del ejemplar | La sede de origen debe ser su sede de pertenencia y su ubicación actual. |
 | Duplicados | Documento, ISBN, código de ejemplar y nombre de sede únicos. |
-| Vencimiento | Catorce días corridos desde la entrega; no desde la solicitud. |
+| Vencimiento | Plazo configurable al solicitar el préstamo (`plazo_dias`, por defecto 14 días corridos) calculado desde la entrega; no desde la solicitud. |
 | Multa | $100 por día corrido de atraso. Al devolver con atraso se crea un registro en `multas` con estado `PENDIENTE` y el socio queda inhabilitado hasta que se registre el pago (`PAGADA`). |
-| Reservas | Cola por libro y sede; se asigna el primer ejemplar disponible a la primera reserva vigente de socio habilitado. Solo el titular puede solicitar ese ejemplar. |
-| Condición de devolución | `BUENO`, `DANADO`, `DESTRUIDO` o `EXTRAVIADO`. |
+| Reservas | Cola por libro y sede; se asigna el primer ejemplar disponible a la primera reserva vigente de socio habilitado. Si el socio solicita ese ejemplar u otra copia disponible del mismo libro en la sede de retiro, la reserva pasa a `CUMPLIDA` y cualquier copia previamente apartada se libera o reasigna. |
+| Condición del ejemplar y devolución | `BUENO`, `DANADO`, `DESTRUIDO` o `EXTRAVIADO`, visible tanto en catálogo y selección de préstamo como al registrar la devolución. |
+| Cancelaciones y bajas (`DELETE`) | Solicitudes en `SOLICITADO` pasan a `CANCELADO` liberando el ejemplar. Libros sin copias se eliminan físicamente. Ejemplares, sedes y socios sin historial se eliminan físicamente; si poseen historial, reciben baja lógica (`BAJA`, `activa = 0`, `habilitado = 0`) preservando los reportes. |
 
 El plazo y la multa son decisiones de diseño porque el enunciado pide control de vencimientos y reportes de multas, pero no indica valores. Están centralizados en `Biblioteca.PLAZO_DIAS` y `Biblioteca.MULTA_DIARIA_CENTAVOS` para facilitar su cambio. Las reservas se gestionan en la sede de retiro y se asignan a ejemplares físicamente disponibles en ella. Los materiales interbibliotecarios regresan siempre a su sede de pertenencia.
 
@@ -404,15 +412,19 @@ La comunicación entre la interfaz web (`frontend/`) y el backend (`backend/cont
 | `GET` | `/api/sedes` | Ninguno | `[{"id": int, "nombre": str, "direccion": str, "contacto": str, "horarios": str, "activa": int}, ...]` |
 | `POST` | `/api/sedes` | **Body (JSON)**: `nombre` (str), `direccion` (str), `contacto` (str), `horarios` (str) | `{"id": int, "resultado": int}` *(HTTP 201)* |
 | `PATCH` | `/api/sedes/{sede_id}` | **Path**: `sede_id` (int)<br>**Body (JSON)**: `direccion?` (str), `contacto?` (str), `horarios?` (str), `activa?` (bool\|int) | `{"resultado": "ok"}` |
+| `DELETE` | `/api/sedes/{sede_id}` | **Path**: `sede_id` (int) | `{"resultado": "eliminado" \| "baja_logica"}` |
 | `GET` | `/api/socios` | Ninguno | `[{"id": int, "documento": str, "nombre": str, "email": str, "habilitado": int}, ...]` |
 | `POST` | `/api/socios` | **Body (JSON)**: `documento` (str), `nombre` (str), `email` (str) | `{"id": int, "resultado": int}` *(HTTP 201)* |
 | `PATCH` | `/api/socios/{socio_id}` | **Path**: `socio_id` (int)<br>**Body (JSON)**: `nombre?` (str), `email?` (str), `habilitado?` (bool\|int) | `{"resultado": "ok"}` |
+| `DELETE` | `/api/socios/{socio_id}` | **Path**: `socio_id` (int) | `{"resultado": "eliminado" \| "baja_logica"}` |
 | `GET` | `/api/libros`<br>*(alias: `/api/materiales`)* | Ninguno | `[{"id": int, "isbn": str, "titulo": str, "autor": str, "anio": int\|null}, ...]` |
 | `POST` | `/api/libros`<br>*(alias: `/api/materiales`)* | **Body (JSON)**: `isbn` (str), `titulo` (str), `autor` (str), `anio?` (int) | `{"id": int, "resultado": int}` *(HTTP 201)* |
 | `PATCH` | `/api/libros/{libro_id}`<br>*(alias: `/api/materiales/{libro_id}`)* | **Path**: `libro_id` (int)<br>**Body (JSON)**: `titulo?` (str), `autor?` (str), `anio?` (int) | `{"resultado": "ok"}` |
+| `DELETE` | `/api/libros/{libro_id}`<br>*(alias: `/api/materiales/{libro_id}`)* | **Path**: `libro_id` (int) | `{"resultado": "eliminado"}` *(solo si no tiene ejemplares ni reservas)* |
 | `GET` | `/api/ejemplares` | Ninguno | `[{"id": int, "codigo": str, "libro_id": int, "sede_pertenencia_id": int, "sede_actual_id": int, "estado": str, "condicion": str}, ...]` |
 | `POST` | `/api/ejemplares` | **Body (JSON)**: `codigo` (str), `libro_id` (int), `sede_id` (int), `condicion?` (str) | `{"id": int, "resultado": int}` *(HTTP 201)* |
 | `POST` | `/api/ejemplares/{ejemplar_id}/revision` | **Path**: `ejemplar_id` (int)<br>**Body (JSON)**: `apto` (bool) | `{"resultado": "ok"}` |
+| `DELETE` | `/api/ejemplares/{ejemplar_id}` | **Path**: `ejemplar_id` (int) | `{"resultado": "eliminado" \| "baja_logica"}` |
 | `GET` | `/api/disponibilidad` | **Query**: `sede_id?` (int) | `[{"sede_id": int, "sede": str, "libro_id": int, "isbn": str, "titulo": str, "ejemplares_totales": int, "disponibles": int}, ...]` |
 | `GET` | `/api/reservas` | Ninguno | `[{"id": int, "socio_id": int, "libro_id": int, "sede_id": int, "ejemplar_id": int\|null, "estado": str, "creada_en": str}, ...]` |
 | `POST` | `/api/reservas` | **Body (JSON)**: `socio_id` (int), `libro_id` (int), `sede_id` (int) | `{"id": int, "resultado": int}` *(HTTP 201)* |
@@ -422,6 +434,7 @@ La comunicación entre la interfaz web (`frontend/`) y el backend (`backend/cont
 | `POST` | `/api/solicitudes`<br>*(alias: `/api/prestamos`)* | **Body (JSON)**: `socio_id` (int), `ejemplar_id` (int), `sede_origen_id` (int), `sede_destino_id` (int), `plazo_dias?` (int) | `{"id": int, "resultado": int}` *(HTTP 201)* |
 | `POST` | `/api/prestamos/{prestamo_id}/entregar` | **Path**: `prestamo_id` (int) | `{"vence_en": str, "resultado": {"vence_en": str}}` |
 | `POST` | `/api/prestamos/{prestamo_id}/devolver` | **Path**: `prestamo_id` (int)<br>**Body (JSON)**: `condicion?` (str) | `{"multa_centavos": int, "resultado": {"multa_centavos": int}}` |
+| `DELETE` | `/api/prestamos/{prestamo_id}`<br>*(alias: `DELETE /api/solicitudes/{prestamo_id}`, `POST /api/prestamos/{prestamo_id}/cancelar`)* | **Path**: `prestamo_id` (int) | `{"resultado": "ok"}` *(cancela solicitud en estado `SOLICITADO` y libera el ejemplar)* |
 | `GET` | `/api/remitos` | Ninguno | `[{"id": int, "prestamo_id": int, "ejemplar_id": int, "tipo": str, "origen_id": int, "destino_id": int, "estado": str, "creado_en": str, "recibido_en": str\|null}, ...]` |
 | `POST` | `/api/remitos/{remito_id}/avanzar` | **Path**: `remito_id` (int)<br>**Body (JSON)**: `estado` (str), `detalle?` (str) | `{"resultado": "ok"}` |
 | `GET` | `/api/remitos/{remito_id}/historial` | **Path**: `remito_id` (int) | `[{"id": int, "remito_id": int, "estado": str, "fecha": str, "detalle": str}, ...]` |

@@ -63,6 +63,10 @@ class RemitoDAO:
             (remito.estado, remito.recibido_en, remito.id),
         )
 
+    def eliminar(self, remito_id: int) -> None:
+        self.con.execute("DELETE FROM historial_remitos WHERE remito_id=?", (remito_id,))
+        self.con.execute("DELETE FROM remitos WHERE id=?", (remito_id,))
+
     def reporte_logistica(self) -> list[dict]:
         return [
             dict(fila)

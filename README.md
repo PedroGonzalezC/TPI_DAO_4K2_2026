@@ -15,7 +15,7 @@ Abrir **http://127.0.0.1:8000**. El servidor solo escucha en la computadora loca
 Para una presentación con datos de muestra, crear una **base separada** y abrirla con el mismo servidor:
 
 ```powershell
-python -m backend.demo --db demo_biblioteca.db
+python -m backend.demo --db demo_biblioteca.db --reset
 python -m backend.web --db demo_biblioteca.db
 ```
 
@@ -108,10 +108,10 @@ Las pruebas usan bases SQLite temporales independientes. Cubren el circuito loca
 ## Organización (Arquitectura en capas)
 
 - `frontend/`: **4.1. Presentación** — interfaz web adaptable para navegador (`index.html`, `app.js`, `styles.css`).
-- `backend/controllers/`: **4.2. Controllers** — un archivo por controlador FastAPI (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `reporte_controller.py`, `schemas.py`, `dependencias.py`, `app.py`).
-- `backend/services/`: **4.3. Services** — un archivo por servicio de negocio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `reporte_service.py`, `biblioteca_service.py`).
-- `backend/models/`: **4.4. Dominio (Models)** — un archivo por entidad/modelo (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `excepciones.py`).
-- `backend/daos/`: **4.5. Persistencia / DAO** — un archivo por clase DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`).
+- `backend/controllers/`: **4.2. Controllers** — un archivo por controlador FastAPI (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `multa_controller.py`, `reporte_controller.py`, `schemas.py`, `dependencias.py`, `app.py`).
+- `backend/services/`: **4.3. Services** — un archivo por servicio de negocio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `multa_service.py`, `reporte_service.py`, `biblioteca_service.py`).
+- `backend/models/`: **4.4. Dominio (Models)** — un archivo por entidad/modelo (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `multa.py`, `excepciones.py`).
+- `backend/daos/`: **4.5. Persistencia / DAO** — un archivo por clase DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`, `multa_dao.py`).
 - `backend/database/`: **4.6. Base de datos** — esquema SQLite (`esquema.py`) y gestor transaccional (`conexion.py`).
 - `backend/__main__.py`: interfaz de consola (`python -m backend`).
 - `backend/web.py`: servidor local Uvicorn/FastAPI (`python -m backend.web`).

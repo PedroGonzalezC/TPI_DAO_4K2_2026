@@ -52,3 +52,13 @@ def actualizar_sede(
         activa=datos.activa,
     )
     return {"resultado": "ok"}
+
+
+@router.delete("/{sede_id}")
+def eliminar_sede(
+    sede_id: Annotated[int, PathParam(gt=0)],
+    _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_GESTION))],
+    servicio: Annotated[SedeService, Depends(obtener_sede_service)],
+):
+    accion = servicio.eliminar_sede(sede_id)
+    return {"resultado": accion}

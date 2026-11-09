@@ -135,3 +135,41 @@ class TestWebControllers(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Red de Bibliotecas", response.text)
         self.assertIn("text/html", response.headers["content-type"])
+
+    def test_endpoints_delete(self):
+        sede = self.client.post(
+            "/api/sedes",
+            json={"nombre": "Norte", "direccion": "Av 1", "contacto": "111", "horarios": "9-18"},
+        ).json()["id"]
+        socio = self.client.post(
+            "/api/socios",
+            json={"documento": "40111222", "nombre": "Juan", "email": "juan@test.com"},
+        ).json()["id"]
+        libro = self.client.post(
+            "/api/libros",
+            json={"isbn": "9780001112223", "titulo": "Temporal", "autor": "Autor", "anio": 2024},
+        ).json()["id"]
+        ejemplar = self.client.post(
+            "/api/ejemplares",
+            json={"codigo": "N-01", "libro_id": libro, "sede_id": sede},
+        ).json()["id"]
+        prestamo = self.client.post(
+            "/api/prestamos",
+            json={"socio_id": socio, "ejemplar_id": ejemplar, "sede_origen_id": sede, "sede_destino_id": sede},
+        ).json()["id"]
+
+        res_cancel = self.client.delete(f"/api/prestamos/{prestamo}")
+        self.assertEqual(res_cancel.status_code, 200)
+        self.assertEqual(self.client.get("/api/prestamos").json()[0]["estado"], "CANCELADO")
+
+        res_ejemplar = self.client.delete(f"/api/ejemplares/{ejemplar}")
+        self.assertEqual(res_ejemplar.status_code, 200)
+        self.assertEqual(res_ejemplar.json()["resultado"], "baja_logica")
+
+        libro_vacio = self.client.post(
+            "/api/libros",
+            json={"isbn": "9780009998887", "titulo": "Borrable", "autor": "Autor", "anio": 2024},
+        ).json()["id"]
+        res_libro = self.client.delete(f"/api/libros/{libro_vacio}")
+        self.assertEqual(res_libro.status_code, 200)
+        self.assertEqual(res_libro.json()["resultado"], "eliminado")

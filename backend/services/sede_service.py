@@ -57,3 +57,14 @@ class SedeService:
     def listar_sedes(self) -> list[dict]:
         with self.db.conexion() as con:
             return SedeDAO(con).listar()
+
+    def eliminar_sede(self, sede_id: int) -> str:
+        with self.db.conexion() as con:
+            sede_dao = SedeDAO(con)
+            sede = self.obtener_existente(con, sede_id)
+            if sede_dao.tiene_dependencias(sede_id):
+                sede.actualizar(activa=False)
+                sede_dao.actualizar(sede)
+                return "baja_logica"
+            sede_dao.eliminar(sede_id)
+            return "eliminado"

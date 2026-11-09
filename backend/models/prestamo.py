@@ -53,6 +53,11 @@ class Prestamo:
     def marcar_listo(self) -> None:
         self.estado = "LISTO"
 
+    def cancelar(self) -> None:
+        if self.estado != "SOLICITADO":
+            raise ReglaNegocio("Solo se puede cancelar un préstamo en estado SOLICITADO")
+        self.estado = "CANCELADO"
+
     def entregar(self, ahora: datetime, fecha_minima_iso: str, plazo_dias: int | None = None) -> str:
         requerido = self.estado_requerido_entrega
         if self.estado != requerido:

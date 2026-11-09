@@ -56,6 +56,17 @@ def actualizar_material(
     return {"resultado": "ok"}
 
 
+@router.delete("/libros/{libro_id}")
+@router.delete("/materiales/{libro_id}")
+def eliminar_material(
+    libro_id: Annotated[int, PathParam(gt=0)],
+    _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_GESTION))],
+    servicio: Annotated[CatalogoService, Depends(obtener_catalogo_service)],
+):
+    servicio.eliminar_material(libro_id)
+    return {"resultado": "eliminado"}
+
+
 @router.get("/ejemplares")
 def listar_ejemplares(
     _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_LECTURA))],
@@ -85,6 +96,16 @@ def cerrar_revision_ejemplar(
 ):
     servicio.cerrar_revision(ejemplar_id, datos.apto)
     return {"resultado": "ok"}
+
+
+@router.delete("/ejemplares/{ejemplar_id}")
+def eliminar_ejemplar(
+    ejemplar_id: Annotated[int, PathParam(gt=0)],
+    _usuario: Annotated[UsuarioActual, Depends(requerir_autorizacion(*ROLES_GESTION))],
+    servicio: Annotated[CatalogoService, Depends(obtener_catalogo_service)],
+):
+    accion = servicio.eliminar_ejemplar(ejemplar_id)
+    return {"resultado": accion}
 
 
 @router.get("/disponibilidad")

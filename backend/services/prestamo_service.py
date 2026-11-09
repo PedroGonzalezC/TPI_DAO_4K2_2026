@@ -74,6 +74,20 @@ class PrestamoService:
                 reserva_dao.actualizar(reserva)
             elif not ejemplar.esta_disponible:
                 raise ReglaNegocio("El ejemplar no está disponible")
+            else:
+                reserva_socio = reserva_dao.obtener_activa_por_socio_libro_sede(
+                    socio_id, ejemplar.libro_id, sede_destino_id
+                )
+                if reserva_socio is not None:
+                    ejemplar_anterior_id = reserva_socio.ejemplar_id
+                    reserva_socio.estado = "CUMPLIDA"
+                    reserva_dao.actualizar(reserva_socio)
+                    if ejemplar_anterior_id is not None and ejemplar_anterior_id != ejemplar_id:
+                        ejemplar_anterior = ejemplar_dao.obtener_por_id(ejemplar_anterior_id)
+                        if ejemplar_anterior is not None and ejemplar_anterior.estado == "RESERVADO":
+                            ejemplar_anterior.liberar()
+                            ejemplar_dao.actualizar(ejemplar_anterior)
+                            self.reserva_service.asignar_si_corresponde(con, ejemplar_anterior_id)
 
             solicitud = FabricaPrestamos.crear(
                 socio_id,
@@ -182,6 +196,33 @@ class PrestamoService:
                 self.reserva_service.asignar_si_corresponde(con, prestamo.ejemplar_id)
 
             return multa
+
+    def cancelar_prestamo(self, prestamo_id: int) -> None:
+        with self.db.conexion() as con:
+            prestamo_dao = PrestamoDAO(con)
+            ejemplar_dao = EjemplarDAO(con)
+            remito_dao = RemitoDAO(con)
+
+            prestamo = prestamo_dao.obtener_por_id(prestamo_id)
+            if prestamo is None:
+                raise NoEncontradoError(f"No existe prestamo con id {prestamo_id}")
+
+            if prestamo.es_interbibliotecario:
+                remito_ida = remito_dao.obtener_por_prestamo_y_tipo(prestamo_id, "IDA")
+                if remito_ida is not None:
+                    if remito_ida.estado != "CREADO":
+                        raise ReglaNegocio(
+                            "No se puede cancelar una solicitud cuyo remito ya fue preparado o despachado"
+                        )
+                    remito_dao.eliminar(remito_ida.id)
+
+            prestamo.cancelar()
+            prestamo_dao.actualizar(prestamo)
+
+            ejemplar = CatalogoService.obtener_ejemplar_existente(con, prestamo.ejemplar_id)
+            ejemplar.liberar()
+            ejemplar_dao.actualizar(ejemplar)
+            self.reserva_service.asignar_si_corresponde(con, prestamo.ejemplar_id)
 
     def listar_prestamos(self) -> list[dict]:
         with self.db.conexion() as con:

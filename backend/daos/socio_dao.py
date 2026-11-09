@@ -38,3 +38,19 @@ class SocioDAO:
             "UPDATE socios SET nombre=?, email=?, habilitado=? WHERE id=?",
             (socio.nombre, socio.email, int(socio.habilitado), socio.id),
         )
+
+    def tiene_prestamos_activos(self, socio_id: int) -> bool:
+        fila = self.con.execute(
+            "SELECT 1 FROM prestamos WHERE socio_id=? AND estado NOT IN ('DEVUELTO', 'CANCELADO') LIMIT 1",
+            (socio_id,),
+        ).fetchone()
+        return fila is not None
+
+    def tiene_historial(self, socio_id: int) -> bool:
+        for tabla in ("prestamos", "reservas", "multas"):
+            if self.con.execute(f"SELECT 1 FROM {tabla} WHERE socio_id=? LIMIT 1", (socio_id,)).fetchone() is not None:
+                return True
+        return False
+
+    def eliminar(self, socio_id: int) -> None:
+        self.con.execute("DELETE FROM socios WHERE id=?", (socio_id,))

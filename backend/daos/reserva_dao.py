@@ -41,6 +41,20 @@ class ReservaDAO:
         ).fetchone()
         return self._mapear(fila) if fila is not None else None
 
+    def obtener_activa_por_socio_libro_sede(
+        self, socio_id: int, libro_id: int, sede_id: int
+    ) -> Reserva | None:
+        fila = self.con.execute(
+            """
+            SELECT * FROM reservas
+            WHERE socio_id=? AND libro_id=? AND sede_id=?
+              AND estado IN ('EN_ESPERA', 'ASIGNADA')
+            LIMIT 1
+            """,
+            (socio_id, libro_id, sede_id),
+        ).fetchone()
+        return self._mapear(fila) if fila is not None else None
+
     def buscar_primera_en_espera_habilitada(self, libro_id: int, sede_id: int) -> Reserva | None:
         fila = self.con.execute(
             """
