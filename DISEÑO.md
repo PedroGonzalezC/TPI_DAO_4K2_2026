@@ -289,7 +289,11 @@ classDiagram
     Ejemplar "1" <-- "*" Prestamo : objeto de
     Prestamo "1" <-- "0..2" Remito : traslada
     Prestamo "1" <-- "0..1" Multa : genera por atraso
-    Socio "1" <-- "*" Multa : adeuda
+    Socio "1" <-- "*" Multa : adeuda / inhabilita
+    MultaDAO ..> Multa : persiste
+    MultaService ..> MultaDAO : utiliza
+    MultaService ..> Socio : rehabilita al pagar
+    PrestamoService ..> Multa : crea si hay atraso
 
     class Multa {
         +int id
@@ -308,9 +312,23 @@ classDiagram
         +Connection con
         +crear(multa) int
         +obtener_por_id(multa_id) Multa
+        +obtener_por_prestamo(prestamo_id) Multa
         +actualizar(multa) void
         +tiene_pendientes_por_socio(socio_id) bool
         +listar() list
+    }
+
+    class MultaService {
+        +BaseDatos db
+        +listar_multas() list
+        +pagar_multa(multa_id, fecha) void
+    }
+
+    class PrestamoService {
+        +BaseDatos db
+        +solicitar_prestamo(...) int
+        +entregar_prestamo(...) str
+        +devolver_prestamo(...) int
     }
 ```
 
