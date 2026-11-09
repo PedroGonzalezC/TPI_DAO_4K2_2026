@@ -394,6 +394,42 @@ El plazo y la multa son decisiones de diseño porque el enunciado pide control d
 
 La tasa de recepción no es una tasa de entregas sin incidentes: solo expresa qué porcentaje de remitos creados ya llegó. El enunciado propone incidencias como reporte sugerido, pero el registro detallado de incidencias es un proceso opcional no implementado.
 
+## Catálogo de Endpoints de la API REST
+
+La comunicación entre la interfaz web (`frontend/`) y el backend (`backend/controllers/`) se efectúa mediante HTTP REST bajo la URI base relativa `/api/...` (por ejemplo `http://127.0.0.1:8000/api/...`). Todas las respuestas exitosas devuelven contenido en formato `application/json` (o HTML/CSS/JS para los recursos estáticos).
+
+| Verbo | Endpoint | Parámetros (Path / Query / Body) | Respuesta JSON |
+|---|---|---|---|
+| `GET` | `/api/base` | Ninguno | `{"nombre": str, "demo": bool}` |
+| `GET` | `/api/sedes` | Ninguno | `[{"id": int, "nombre": str, "direccion": str, "contacto": str, "horarios": str, "activa": int}, ...]` |
+| `POST` | `/api/sedes` | **Body (JSON)**: `nombre` (str), `direccion` (str), `contacto` (str), `horarios` (str) | `{"id": int, "resultado": int}` *(HTTP 201)* |
+| `PATCH` | `/api/sedes/{sede_id}` | **Path**: `sede_id` (int)<br>**Body (JSON)**: `direccion?` (str), `contacto?` (str), `horarios?` (str), `activa?` (bool\|int) | `{"resultado": "ok"}` |
+| `GET` | `/api/socios` | Ninguno | `[{"id": int, "documento": str, "nombre": str, "email": str, "habilitado": int}, ...]` |
+| `POST` | `/api/socios` | **Body (JSON)**: `documento` (str), `nombre` (str), `email` (str) | `{"id": int, "resultado": int}` *(HTTP 201)* |
+| `PATCH` | `/api/socios/{socio_id}` | **Path**: `socio_id` (int)<br>**Body (JSON)**: `nombre?` (str), `email?` (str), `habilitado?` (bool\|int) | `{"resultado": "ok"}` |
+| `GET` | `/api/libros`<br>*(alias: `/api/materiales`)* | Ninguno | `[{"id": int, "isbn": str, "titulo": str, "autor": str, "anio": int\|null}, ...]` |
+| `POST` | `/api/libros`<br>*(alias: `/api/materiales`)* | **Body (JSON)**: `isbn` (str), `titulo` (str), `autor` (str), `anio?` (int) | `{"id": int, "resultado": int}` *(HTTP 201)* |
+| `PATCH` | `/api/libros/{libro_id}`<br>*(alias: `/api/materiales/{libro_id}`)* | **Path**: `libro_id` (int)<br>**Body (JSON)**: `titulo?` (str), `autor?` (str), `anio?` (int) | `{"resultado": "ok"}` |
+| `GET` | `/api/ejemplares` | Ninguno | `[{"id": int, "codigo": str, "libro_id": int, "sede_pertenencia_id": int, "sede_actual_id": int, "estado": str, "condicion": str}, ...]` |
+| `POST` | `/api/ejemplares` | **Body (JSON)**: `codigo` (str), `libro_id` (int), `sede_id` (int), `condicion?` (str) | `{"id": int, "resultado": int}` *(HTTP 201)* |
+| `POST` | `/api/ejemplares/{ejemplar_id}/revision` | **Path**: `ejemplar_id` (int)<br>**Body (JSON)**: `apto` (bool) | `{"resultado": "ok"}` |
+| `GET` | `/api/disponibilidad` | **Query**: `sede_id?` (int) | `[{"sede_id": int, "sede": str, "libro_id": int, "isbn": str, "titulo": str, "ejemplares_totales": int, "disponibles": int}, ...]` |
+| `GET` | `/api/reservas` | Ninguno | `[{"id": int, "socio_id": int, "libro_id": int, "sede_id": int, "ejemplar_id": int\|null, "estado": str, "creada_en": str}, ...]` |
+| `POST` | `/api/reservas` | **Body (JSON)**: `socio_id` (int), `libro_id` (int), `sede_id` (int) | `{"id": int, "resultado": int}` *(HTTP 201)* |
+| `POST` | `/api/reservas/{reserva_id}/cancelar`<br>*(alias: `DELETE /api/reservas/{reserva_id}`)* | **Path**: `reserva_id` (int) | `{"resultado": "ok"}` |
+| `GET` | `/api/solicitudes` | Ninguno | `[{"id": int, "socio_id": int, "ejemplar_id": int, "sede_origen_id": int, "sede_destino_id": int, "tipo": str, "estado": str, ...}, ...]` |
+| `GET` | `/api/prestamos` | Ninguno | `[{"id": int, "socio_id": int, "ejemplar_id": int, "sede_origen_id": int, "sede_destino_id": int, "tipo": str, "estado": str, "plazo_dias": int, "solicitado_en": str, "entregado_en": str\|null, "vence_en": str\|null, "devuelto_en": str\|null, "condicion_devolucion": str\|null, "multa_centavos": int}, ...]` |
+| `POST` | `/api/solicitudes`<br>*(alias: `/api/prestamos`)* | **Body (JSON)**: `socio_id` (int), `ejemplar_id` (int), `sede_origen_id` (int), `sede_destino_id` (int), `plazo_dias?` (int) | `{"id": int, "resultado": int}` *(HTTP 201)* |
+| `POST` | `/api/prestamos/{prestamo_id}/entregar` | **Path**: `prestamo_id` (int) | `{"vence_en": str, "resultado": {"vence_en": str}}` |
+| `POST` | `/api/prestamos/{prestamo_id}/devolver` | **Path**: `prestamo_id` (int)<br>**Body (JSON)**: `condicion?` (str) | `{"multa_centavos": int, "resultado": {"multa_centavos": int}}` |
+| `GET` | `/api/remitos` | Ninguno | `[{"id": int, "prestamo_id": int, "ejemplar_id": int, "tipo": str, "origen_id": int, "destino_id": int, "estado": str, "creado_en": str, "recibido_en": str\|null}, ...]` |
+| `POST` | `/api/remitos/{remito_id}/avanzar` | **Path**: `remito_id` (int)<br>**Body (JSON)**: `estado` (str), `detalle?` (str) | `{"resultado": "ok"}` |
+| `GET` | `/api/remitos/{remito_id}/historial` | **Path**: `remito_id` (int) | `[{"id": int, "remito_id": int, "estado": str, "fecha": str, "detalle": str}, ...]` |
+| `GET` | `/api/multas` | Ninguno | `[{"id": int, "prestamo_id": int, "socio_id": int, "monto_centavos": int, "dias_atraso": int, "estado": str, "creada_en": str, "pagada_en": str\|null, "socio_nombre": str, "socio_documento": str, "ejemplar_id": int, "ejemplar_codigo": str, "libro_titulo": str}, ...]` |
+| `POST` | `/api/multas/{multa_id}/pagar` | **Path**: `multa_id` (int) | `{"resultado": "ok"}` |
+| `GET` | `/api/reportes` | Ninguno | `{"activos_transito": [...], "vencidos_multas": [...], "mas_solicitados": [...], "disponibilidad": [...], "logistica": [...], "movimientos": [...]}` |
+| `GET` | `/api/reportes/{nombre}` | **Path**: `nombre` (str) | `[{"...": "..."}, ...]` *(registros del reporte solicitado)* |
+
 ## Correspondencia con el enunciado
 
 | Proceso obligatorio | Comandos / métodos |
