@@ -28,7 +28,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
 def crear_app(ruta_db: str | Path | None = None) -> FastAPI:
-    ruta_efectiva = Path(ruta_db or os.environ.get("BIBLIOTECA_DB", "biblioteca.db"))
+    ruta_efectiva = Path(ruta_db or os.environ.get("BIBLIOTECA_DB", "demo_biblioteca.db"))
     app = FastAPI(
         title="Red de Bibliotecas - API REST",
         description="Controllers FastAPI en arquitectura por capas para préstamos interbibliotecarios.",
@@ -76,7 +76,7 @@ def crear_app(ruta_db: str | Path | None = None) -> FastAPI:
         request: Request,
     ):
         nombre = request.app.state.nombre_base
-        return {"nombre": nombre, "demo": False}
+        return {"nombre": nombre, "demo": nombre.startswith("demo_")}
 
     app.include_router(sedes_router)
     app.include_router(socios_router)
@@ -95,7 +95,7 @@ def crear_app(ruta_db: str | Path | None = None) -> FastAPI:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Servidor FastAPI local de la biblioteca")
-    parser.add_argument("--db", default="biblioteca.db", help="Ruta de la base SQLite")
+    parser.add_argument("--db", default="demo_biblioteca.db", help="Ruta de la base SQLite")
     parser.add_argument("--port", type=int, default=8000, help="Puerto local (por defecto 8000)")
     args = parser.parse_args()
     ruta_db = Path(args.db)

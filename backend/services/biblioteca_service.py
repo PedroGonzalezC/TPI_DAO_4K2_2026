@@ -20,7 +20,7 @@ class Biblioteca:
     PLAZO_DIAS = PrestamoService.PLAZO_DIAS
     MULTA_DIARIA_CENTAVOS = PrestamoService.MULTA_DIARIA_CENTAVOS
 
-    def __init__(self, ruta_db: str | Path = "biblioteca.db") -> None:
+    def __init__(self, ruta_db: str | Path = "demo_biblioteca.db") -> None:
         self.db = BaseDatos(ruta_db)
         self.sedes = SedeService(self.db)
         self.socios = SocioService(self.db)

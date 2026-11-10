@@ -9,7 +9,7 @@ from .services.biblioteca_service import Biblioteca
 
 def construir_parser():
     parser = argparse.ArgumentParser(description="Red de bibliotecas: préstamos interbibliotecarios")
-    parser.add_argument("--db", default="biblioteca.db", help="Archivo SQLite (por defecto biblioteca.db)")
+    parser.add_argument("--db", default="demo_biblioteca.db", help="Archivo SQLite (por defecto demo_biblioteca.db)")
     sub = parser.add_subparsers(dest="comando", required=True)
 
     def comando(nombre, *campos):

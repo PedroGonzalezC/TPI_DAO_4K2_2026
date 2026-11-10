@@ -13,6 +13,21 @@ Se implementaron los ocho procesos obligatorios y todas las validaciones indicad
 5. **Persistencia / DAO (`backend/daos/`):** Un archivo por DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`, `multa_dao.py`), sin lógica de negocio ni decisiones de autorización.
 6. **Base de datos (`backend/database/`):** Esquema relacional SQLite (`esquema.py`) y gestor transaccional de conexiones (`conexion.py`).
 
+## Puesta en marcha y ciclo de ejecución (`python -m backend.web --db demo_biblioteca.db`)
+
+El punto de entrada web del sistema se inicia mediante el comando:
+
+```powershell
+python -m backend.web --db demo_biblioteca.db
+```
+
+Al ejecutar este comando, [`backend/web.py`](backend/web.py) realiza secuencialmente las siguientes tareas:
+
+1. **Verificación e inicialización automática de la base (`demo_biblioteca.db`):** Comprueba si el archivo SQLite indicado en `--db` (`demo_biblioteca.db` por defecto) existe y posee sedes cargadas. Si no existe o se encuentra vacío, invoca automáticamente a `crear_demo("demo_biblioteca.db")` definida en [`backend/demo.py`](backend/demo.py), que crea las tablas relacionales y pobla los datos iniciales de prueba (las 3 sedes `Biblioteca Central`, `Sede Norte` y `Sede Sur`, socios, libros, ejemplares, préstamos locales e interbibliotecarios, remitos con historial, reservas y multas).
+2. **Construcción de la aplicación FastAPI (`crear_app`):** Instancia la fachada de servicios `Biblioteca("demo_biblioteca.db")` en `app.state.biblioteca`, registra el manejador global de `ErrorBiblioteca` (que traduce violaciones de reglas de dominio a respuestas HTTP `400 Bad Request` en JSON) e incorpora los 8 routers REST de `backend/controllers/` bajo `/api/...`.
+3. **Vinculación con el frontend React:** Monta el directorio `frontend/` en la raíz `/` mediante `StaticFiles(directory=FRONTEND_DIR, html=True)`, sirviendo `index.html`, `styles.css` y los componentes modulares JSX (`src/App.jsx`, `src/components/`, `src/views/`, `src/api.js`) en el mismo origen que la API REST.
+4. **Arranque del servidor ASGI:** Inicia Uvicorn en `http://127.0.0.1:8000` (configurable con `--host` y `--port`), dejando operativos tanto la interfaz web interactiva como todos los endpoints `/api/...` sobre `demo_biblioteca.db`.
+
 ## Diagrama Entidad-Relación (DER) y Modelo de Datos
 
 ```mermaid

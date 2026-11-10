@@ -4,48 +4,48 @@ Sistema de préstamos locales e interbibliotecarios para una red de sedes, organ
 
 ## Interfaz web
 
-La presentación principal se abre en el navegador. Desde esta carpeta:
+La presentación principal se abre en el navegador ejecutando:
 
 ```powershell
-python -m backend.web
+python -m backend.web --db demo_biblioteca.db
 ```
 
-Abrir **http://127.0.0.1:8000**. El servidor utiliza la base única `biblioteca.db` (que ya viene precargada con datos iniciales de sedes, socios, libros, ejemplares, préstamos, traslados, reservas y multas). Para reiniciar la base a su estado inicial en cualquier momento:
+Abrir **http://127.0.0.1:8000**. El servidor utiliza la base única `demo_biblioteca.db` (si no existe o está vacía, la inicializa automáticamente con las 3 sedes, socios, libros, ejemplares, préstamos, traslados, reservas y multas de prueba). Para reiniciar la base a su estado inicial en cualquier momento:
 
 ```powershell
-python -m backend.demo
-python -m backend.web
+python -m backend.demo --db demo_biblioteca.db
+python -m backend.web --db demo_biblioteca.db
 ```
 
 ## Ejecución
 
-Abrir una terminal en esta carpeta y ejecutar:
+Abrir una terminal en esta carpeta y ejecutar con `--db demo_biblioteca.db`:
 
 ```powershell
 python -m backend --help
-python -m backend --db biblioteca.db sede-crear "Centro" "San Martín 100" "351-111" "L-V 9-18"
-python -m backend --db biblioteca.db sede-crear "Norte" "Colón 200" "351-222" "L-V 9-17"
-python -m backend --db biblioteca.db socio-crear 12345678 "Ana Pérez" "ana@example.com"
-python -m backend --db biblioteca.db libro-crear 9780000000001 "Diseño con objetos" "A. Autor" --anio 2026
-python -m backend --db biblioteca.db ejemplar-crear EJ-001 1 1
-python -m backend --db biblioteca.db disponibilidad
+python -m backend --db demo_biblioteca.db sede-crear "Centro" "San Martín 100" "351-111" "L-V 9-18"
+python -m backend --db demo_biblioteca.db sede-crear "Norte" "Colón 200" "351-222" "L-V 9-17"
+python -m backend --db demo_biblioteca.db socio-crear 12345678 "Ana Pérez" "ana@example.com"
+python -m backend --db demo_biblioteca.db libro-crear 9780000000001 "Diseño con objetos" "A. Autor" --anio 2026
+python -m backend --db demo_biblioteca.db ejemplar-crear EJ-001 1 1
+python -m backend --db demo_biblioteca.db disponibilidad
 ```
 
 Cada comando devuelve JSON. Los IDs se asignan al crear registros y se consultan con `listar`:
 
 ```powershell
-python -m backend --db biblioteca.db listar sedes
-python -m backend --db biblioteca.db listar socios
-python -m backend --db biblioteca.db listar libros
-python -m backend --db biblioteca.db listar ejemplares
+python -m backend --db demo_biblioteca.db listar sedes
+python -m backend --db demo_biblioteca.db listar socios
+python -m backend --db demo_biblioteca.db listar libros
+python -m backend --db demo_biblioteca.db listar ejemplares
 ```
 
 ### Préstamo local
 
 ```powershell
-python -m backend --db biblioteca.db prestamo-solicitar 1 1 1 1
-python -m backend --db biblioteca.db prestamo-entregar 1
-python -m backend --db biblioteca.db prestamo-devolver 1 --condicion BUENO
+python -m backend --db demo_biblioteca.db prestamo-solicitar 1 1 1 1
+python -m backend --db demo_biblioteca.db prestamo-entregar 1
+python -m backend --db demo_biblioteca.db prestamo-devolver 1 --condicion BUENO
 ```
 
 ### Préstamo entre sedes
@@ -53,15 +53,15 @@ python -m backend --db biblioteca.db prestamo-devolver 1 --condicion BUENO
 Los números `1 1 1 2` significan socio 1, ejemplar 1, sede de origen 1 y sede de destino 2. Usar un ejemplar disponible; si se ejecutó el ejemplo local, ya habrá sido devuelto.
 
 ```powershell
-python -m backend --db biblioteca.db prestamo-solicitar 1 1 1 2
-python -m backend --db biblioteca.db listar remitos
-python -m backend --db biblioteca.db remito-avanzar 1 EMPAQUETADO --detalle "Caja sellada"
-python -m backend --db biblioteca.db remito-avanzar 1 DESPACHADO --detalle "Sale de Centro"
-python -m backend --db biblioteca.db remito-avanzar 1 RECIBIDO --detalle "Ingresa en Norte"
-python -m backend --db biblioteca.db remito-historial 1
-python -m backend --db biblioteca.db prestamo-entregar 2
-python -m backend --db biblioteca.db prestamo-devolver 2 --condicion BUENO
-python -m backend --db biblioteca.db listar remitos
+python -m backend --db demo_biblioteca.db prestamo-solicitar 1 1 1 2
+python -m backend --db demo_biblioteca.db listar remitos
+python -m backend --db demo_biblioteca.db remito-avanzar 1 EMPAQUETADO --detalle "Caja sellada"
+python -m backend --db demo_biblioteca.db remito-avanzar 1 DESPACHADO --detalle "Sale de Centro"
+python -m backend --db demo_biblioteca.db remito-avanzar 1 RECIBIDO --detalle "Ingresa en Norte"
+python -m backend --db demo_biblioteca.db remito-historial 1
+python -m backend --db demo_biblioteca.db prestamo-entregar 2
+python -m backend --db demo_biblioteca.db prestamo-devolver 2 --condicion BUENO
+python -m backend --db demo_biblioteca.db listar remitos
 ```
 
 Al devolver un préstamo interbibliotecario, se crea un remito de regreso. Se lo avanza con `remito-avanzar` de la misma forma. Al recibirlo en la sede de origen, el ejemplar vuelve a estar disponible (o queda en revisión si se devolvió dañado).
@@ -69,13 +69,13 @@ Al devolver un préstamo interbibliotecario, se crea un remito de regreso. Se lo
 ### Reservas y administración
 
 ```powershell
-python -m backend --db biblioteca.db reserva-crear 1 1 1
-python -m backend --db biblioteca.db listar reservas
-python -m backend --db biblioteca.db reserva-cancelar 1
-python -m backend --db biblioteca.db socio-editar 1 --habilitado 0
-python -m backend --db biblioteca.db sede-editar 2 --activa 0
-python -m backend --db biblioteca.db libro-editar 1 --titulo "Nuevo título"
-python -m backend --db biblioteca.db revision-cerrar 1 --apto 1
+python -m backend --db demo_biblioteca.db reserva-crear 1 1 1
+python -m backend --db demo_biblioteca.db listar reservas
+python -m backend --db demo_biblioteca.db reserva-cancelar 1
+python -m backend --db demo_biblioteca.db socio-editar 1 --habilitado 0
+python -m backend --db demo_biblioteca.db sede-editar 2 --activa 0
+python -m backend --db demo_biblioteca.db libro-editar 1 --titulo "Nuevo título"
+python -m backend --db demo_biblioteca.db revision-cerrar 1 --apto 1
 ```
 
 `revision-cerrar` solo corresponde a ejemplares en estado `EN_REVISION`. Las sedes y socios usan baja o inhabilitación lógica para conservar el historial. Se pueden editar dirección, contacto y horarios de sedes, y nombre y correo de socios.
@@ -83,12 +83,12 @@ python -m backend --db biblioteca.db revision-cerrar 1 --apto 1
 ### Reportes
 
 ```powershell
-python -m backend --db biblioteca.db reporte activos_transito
-python -m backend --db biblioteca.db reporte vencidos_multas
-python -m backend --db biblioteca.db reporte mas_solicitados
-python -m backend --db biblioteca.db reporte disponibilidad
-python -m backend --db biblioteca.db reporte logistica
-python -m backend --db biblioteca.db reporte movimientos
+python -m backend --db demo_biblioteca.db reporte activos_transito
+python -m backend --db demo_biblioteca.db reporte vencidos_multas
+python -m backend --db demo_biblioteca.db reporte mas_solicitados
+python -m backend --db demo_biblioteca.db reporte disponibilidad
+python -m backend --db demo_biblioteca.db reporte logistica
+python -m backend --db demo_biblioteca.db reporte movimientos
 ```
 
 Los seis reportes usan consultas agregadas o cruces de varias entidades. Sus definiciones y alcances figuran en [DISEÑO.md](DISEÑO.md).
@@ -103,17 +103,17 @@ Las pruebas usan bases SQLite temporales independientes. Cubren el circuito loca
 
 ## Organización (Arquitectura en capas)
 
-- `frontend/`: **4.1. Presentación (React)** — interfaz web en React modularizada en componentes (`src/components/`), vistas por pantalla (`src/views/`), cliente REST (`src/api.js`), entrada (`app.js`, `src/App.jsx`) y estilos (`styles.css`).
+- `frontend/`: **4.1. Presentación (React)** — interfaz web en React modularizada en componentes (`src/components/`), vistas por pantalla (`src/views/`), cliente REST (`src/api.js`), entrada (`index.html`, `src/App.jsx`) y estilos (`styles.css`).
 - `backend/controllers/`: **4.2. Controllers** — un archivo por controlador FastAPI (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `multa_controller.py`, `reporte_controller.py`, `schemas.py`, `dependencias.py`).
 - `backend/services/`: **4.3. Services** — un archivo por servicio de negocio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `multa_service.py`, `reporte_service.py`, `biblioteca_service.py`).
 - `backend/models/`: **4.4. Dominio (Models)** — un archivo por entidad/modelo (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `multa.py`, `excepciones.py`).
 - `backend/daos/`: **4.5. Persistencia / DAO** — un archivo por clase DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`, `multa_dao.py`).
 - `backend/database/`: **4.6. Base de datos** — esquema SQLite (`esquema.py`) y gestor transaccional (`conexion.py`).
-- `backend/__main__.py`: interfaz de consola (`python -m backend`).
-- `backend/web.py`: servidor local Uvicorn/FastAPI (`python -m backend.web`).
-- `backend/demo.py`: carga inicial de la base de muestra (`python -m backend.demo`).
+- `backend/__main__.py`: interfaz de consola (`python -m backend --db demo_biblioteca.db`).
+- `backend/web.py`: servidor local Uvicorn/FastAPI (`python -m backend.web --db demo_biblioteca.db`).
+- `backend/demo.py`: carga inicial de la base de muestra (`python -m backend.demo --db demo_biblioteca.db`).
 - `tests/`: pruebas automatizadas del dominio, servicios y controllers FastAPI.
 - `DISEÑO.md`: modelo, arquitectura en capas, decisiones, procesos y patrones.
 - `DESIGN.md` y `UX-CONTRACT.md`: criterios visuales y de interacción de la interfaz.
 
-La base `biblioteca.db` se crea automáticamente al ejecutar el primer comando. Para comenzar una base nueva, utilizar otra ruta con `--db`.
+La base `demo_biblioteca.db` se crea e inicializa automáticamente al ejecutar el servidor web (`python -m backend.web --db demo_biblioteca.db`).

@@ -7,7 +7,7 @@ from pathlib import Path
 from .services.biblioteca_service import Biblioteca
 
 
-def poblar(ruta: str | Path = "biblioteca.db", reset: bool = True) -> Biblioteca:
+def poblar(ruta: str | Path = "demo_biblioteca.db", reset: bool = True) -> Biblioteca:
     ruta = Path(ruta)
     if ruta.exists() and reset:
         ruta.unlink()
@@ -136,14 +136,14 @@ def poblar(ruta: str | Path = "biblioteca.db", reset: bool = True) -> Biblioteca
 
 def main():
     parser = argparse.ArgumentParser(description="Inicializar base de datos de la biblioteca con datos de prueba")
-    parser.add_argument("--db", default="biblioteca.db", help="Ruta de la base SQLite (por defecto biblioteca.db)")
+    parser.add_argument("--db", default="demo_biblioteca.db", help="Ruta de la base SQLite (por defecto demo_biblioteca.db)")
     parser.add_argument(
         "--reset", action="store_true", default=True, help="Reiniciar la base con los datos iniciales"
     )
     args = parser.parse_args()
     poblar(args.db, reset=True)
     print(f"Base de datos inicializada con éxito: {args.db}")
-    print(f"Iniciá el servidor con: python -m backend.web")
+    print(f"Iniciá el servidor con: python -m backend.web --db {args.db}")
 
 
 if __name__ == "__main__":
