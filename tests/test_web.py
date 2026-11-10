@@ -4,7 +4,7 @@ from unittest import TestCase
 
 from fastapi.testclient import TestClient
 
-from backend.controllers import crear_app
+from backend.web import crear_app
 
 
 class TestWebControllers(TestCase):
@@ -135,6 +135,10 @@ class TestWebControllers(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Red de Bibliotecas", response.text)
         self.assertIn("text/html", response.headers["content-type"])
+        bundle = self.client.get("/src/App.jsx")
+        self.assertEqual(bundle.status_code, 200)
+        self.assertIn("ReactDOM.createRoot", bundle.text)
+        self.assertIn("VistaPrestamos", bundle.text)
 
     def test_endpoints_delete(self):
         sede = self.client.post(

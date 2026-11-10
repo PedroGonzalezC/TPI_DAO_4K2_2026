@@ -7,19 +7,15 @@ Sistema de préstamos locales e interbibliotecarios para una red de sedes, organ
 La presentación principal se abre en el navegador. Desde esta carpeta:
 
 ```powershell
-python -m backend.web --db biblioteca.db
+python -m backend.web
 ```
 
-Abrir **http://127.0.0.1:8000**. El servidor solo escucha en la computadora local. La interfaz permite operar sedes, socios, catálogo, ejemplares, préstamos, remitos, reservas y reportes sobre la misma base SQLite que la consola. Para detenerla, presionar `Ctrl+C` en la terminal.
-
-Para una presentación con datos de muestra, crear una **base separada** y abrirla con el mismo servidor:
+Abrir **http://127.0.0.1:8000**. El servidor utiliza la base única `biblioteca.db` (que ya viene precargada con datos iniciales de sedes, socios, libros, ejemplares, préstamos, traslados, reservas y multas). Para reiniciar la base a su estado inicial en cualquier momento:
 
 ```powershell
-python -m backend.demo --db demo_biblioteca.db --reset
-python -m backend.web --db demo_biblioteca.db
+python -m backend.demo
+python -m backend.web
 ```
-
-El generador de muestra se niega a modificar una base existente. La base `biblioteca.db` permanece intacta. La interfaz está pensada como demostración local; no incorpora cuentas ni acceso remoto.
 
 ## Ejecución
 
@@ -107,8 +103,8 @@ Las pruebas usan bases SQLite temporales independientes. Cubren el circuito loca
 
 ## Organización (Arquitectura en capas)
 
-- `frontend/`: **4.1. Presentación** — interfaz web adaptable para navegador (`index.html`, `app.js`, `styles.css`).
-- `backend/controllers/`: **4.2. Controllers** — un archivo por controlador FastAPI (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `multa_controller.py`, `reporte_controller.py`, `schemas.py`, `dependencias.py`, `app.py`).
+- `frontend/`: **4.1. Presentación (React)** — interfaz web en React modularizada en componentes (`src/components/`), vistas por pantalla (`src/views/`), cliente REST (`src/api.js`), entrada (`app.js`, `src/App.jsx`) y estilos (`styles.css`).
+- `backend/controllers/`: **4.2. Controllers** — un archivo por controlador FastAPI (`sede_controller.py`, `socio_controller.py`, `catalogo_controller.py`, `reserva_controller.py`, `prestamo_controller.py`, `remito_controller.py`, `multa_controller.py`, `reporte_controller.py`, `schemas.py`, `dependencias.py`).
 - `backend/services/`: **4.3. Services** — un archivo por servicio de negocio (`sede_service.py`, `socio_service.py`, `catalogo_service.py`, `reserva_service.py`, `prestamo_service.py`, `remito_service.py`, `multa_service.py`, `reporte_service.py`, `biblioteca_service.py`).
 - `backend/models/`: **4.4. Dominio (Models)** — un archivo por entidad/modelo (`sede.py`, `socio.py`, `material.py`, `ejemplar.py`, `reserva.py`, `prestamo.py`, `remito.py`, `multa.py`, `excepciones.py`).
 - `backend/daos/`: **4.5. Persistencia / DAO** — un archivo por clase DAO (`sede_dao.py`, `socio_dao.py`, `material_dao.py`, `ejemplar_dao.py`, `solicitud_dao.py`, `prestamo_dao.py`, `reserva_dao.py`, `remito_dao.py`, `evento_remito_dao.py`, `multa_dao.py`).

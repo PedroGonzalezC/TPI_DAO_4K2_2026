@@ -6,50 +6,44 @@
   <meta name="theme-color" content="#183D3E">
   <title>Red de Bibliotecas · Inicio</title>
   <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js?v=6"></script>
 </head>
 <body>
-  <div class="app-shell" id="app-shell">
-    <aside class="sidebar" aria-label="Navegación principal">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <div><strong>Red de<br>Bibliotecas</strong><small>Sistema de circulación</small></div>
+  <div id="root">
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegación principal">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div><strong>Red de<br>Bibliotecas</strong><small>Sistema de circulación</small></div>
+        </div>
+      </aside>
+      <div class="workspace">
+        <main tabindex="-1">
+          <div class="table-message" role="status">Cargando interfaz React de la Red de Bibliotecas…</div>
+        </main>
       </div>
-      <nav class="navigation" id="navigation" aria-label="Áreas del sistema">
-        <a href="?vista=inicio" data-view="inicio"><span class="nav-symbol">⌂</span> Inicio</a>
-        <a href="?vista=prestamos" data-view="prestamos"><span class="nav-symbol">⇄</span> Préstamos</a>
-        <a href="?vista=remitos" data-view="remitos"><span class="nav-symbol">↗</span> Traslados</a>
-        <a href="?vista=catalogo" data-view="catalogo"><span class="nav-symbol">▤</span> Catálogo</a>
-        <a href="?vista=reservas" data-view="reservas"><span class="nav-symbol">◷</span> Reservas</a>
-        <a href="?vista=socios" data-view="socios"><span class="nav-symbol">♙</span> Socios</a>
-        <a href="?vista=multas" data-view="multas"><span class="nav-symbol">$</span> Multas</a>
-        <a href="?vista=sedes" data-view="sedes"><span class="nav-symbol">⌂</span> Sedes</a>
-        <a href="?vista=reportes" data-view="reportes"><span class="nav-symbol">▥</span> Reportes</a>
-      </nav>
-      <div class="sidebar-foot"><span class="connection-dot"></span><span>Servidor local<br><small>Datos guardados en SQLite</small></span></div>
-    </aside>
-    <div class="workspace">
-      <header class="topbar">
-        <span class="topbar-kicker">DAO · Trabajo práctico integrador · Grupo N°34</span>
-        <span class="topbar-base" id="base-label" aria-label="Base de datos activa"></span>
-        <span class="topbar-date" id="today"></span>
-      </header>
-      <main id="main" tabindex="-1" aria-live="off"></main>
-      <footer class="footer">Red de Bibliotecas <span>·</span> Tema 1 <span>·</span> UTN FRC 2026</footer>
     </div>
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <div id="dialog-layer" class="dialog-layer" hidden>
-    <div class="dialog-backdrop"></div>
-    <section id="dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description">
-      <div class="dialog-heading">
-        <div><p class="eyebrow" id="dialog-eyebrow">OPERACIÓN</p><h2 id="dialog-title"></h2></div>
-        <span id="dialog-close-slot"></span>
-      </div>
-      <p id="dialog-description" class="dialog-description"></p>
-      <div id="dialog-body"></div>
-    </section>
-  </div>
+  <!-- React 18 + ReactDOM 18 + Babel para compilar los componentes JSX en el navegador -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+  <!-- Módulos, Componentes y Vistas React servidos directamente desde /src -->
+  <script type="text/babel" src="/src/constantes.js"></script>
+  <script type="text/babel" src="/src/api.js"></script>
+  <script type="text/babel" src="/src/components/UI.jsx"></script>
+  <script type="text/babel" src="/src/components/TablaDatos.jsx"></script>
+  <script type="text/babel" src="/src/components/ModalDialogo.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaInicio.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaPrestamos.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaRemitos.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaCatalogo.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaReservas.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaSocios.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaSedes.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaMultas.jsx"></script>
+  <script type="text/babel" src="/src/views/VistaReportes.jsx"></script>
+  <script type="text/babel" src="/src/App.jsx"></script>
 </body>
 </html>
