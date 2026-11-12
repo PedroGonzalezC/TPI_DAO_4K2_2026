@@ -1,4 +1,4 @@
-"""Carga los datos iniciales en la base de datos principal (biblioteca.db)."""
+"""Carga los datos iniciales en la base de datos principal (demo_biblioteca.db)."""
 
 import argparse
 from datetime import datetime, timedelta
@@ -24,62 +24,68 @@ def poblar(ruta: str | Path = "demo_biblioteca.db", reset: bool = True) -> Bibli
     sur = b.crear_sede("Sede Sur", "Av. Armada Argentina 500", "351 555-0103", "Lun a sáb · 9 a 17")
 
     # 2. Padrón de socios
-    ana = b.crear_socio("30123456", "Ana Ledesma", "ana.ledesma@example.com")
-    lucas = b.crear_socio("32987654", "Lucas Díaz", "lucas.diaz@example.com")
-    maria = b.crear_socio("28555111", "María Torres", "maria.torres@example.com")
-    sofia = b.crear_socio("34444777", "Sofía Aguirre", "sofia.aguirre@example.com")
-    martin = b.crear_socio("31222333", "Martín Pereyra", "martin.pereyra@example.com")
-    valentina = b.crear_socio("36777888", "Valentina Gómez", "valentina.gomez@example.com")
-    nicolas = b.crear_socio("33999000", "Nicolás Ferreyra", "nicolas.ferreyra@example.com")
-    camila = b.crear_socio("38111444", "Camila Quiroga", "camila.quiroga@example.com")
+    martin = b.crear_socio("40111222", "Martín Boiero", "martin.boiero@example.com")
+    jeremias = b.crear_socio("41222333", "Jeremías López Ferreyra", "jeremias.lopez@example.com")
+    francisco = b.crear_socio("42333444", "Francisco González", "francisco.gonzalez@example.com")
+    ignacio = b.crear_socio("43444555", "Ignacio Cuello", "ignacio.cuello@example.com")
+    pedro = b.crear_socio("44555666", "Pedro González", "pedro.gonzalez@example.com")
 
-    # 3. Catálogo de libros
-    objetos = b.crear_libro("9789870001001", "Diseño de aplicaciones con objetos", "M. Salvatierra", 2024)
-    datos = b.crear_libro("9789870001002", "Datos en movimiento", "L. Pereyra", 2022)
-    redes = b.crear_libro("9789870001003", "Redes de lectura", "V. Carrizo", 2021)
-    archivo = b.crear_libro("9789870001004", "El archivo compartido", "P. Molina", 2025)
-    arquitectura = b.crear_libro("9789870001005", "Arquitectura de software limpia", "R. Ceballos", 2023)
-    patrones = b.crear_libro("9789870001006", "Patrones de diseño en Python", "E. Domínguez", 2024)
-    relacionales = b.crear_libro("9789870001007", "Bases de datos relacionales", "C. Villalba", 2020)
-    requerimientos = b.crear_libro("9789870001008", "Ingeniería de requerimientos", "G. Acosta", 2022)
+    # 3. Catálogo de libros (materiales)
+    hp1 = b.crear_libro("9788478884452", "Harry Potter y la piedra filosofal", "J. K. Rowling", 1997)
+    hp2 = b.crear_libro("9788478884957", "Harry Potter y la cámara secreta", "J. K. Rowling", 1998)
+    hp3 = b.crear_libro("9788422685210", "Harry Potter y el prisionero de Azkaban", "J. K. Rowling", 1999)
+    hambre1 = b.crear_libro("9788427202122", "Los juegos del hambre", "Suzanne Collins", 2008)
+    hambre2 = b.crear_libro("9788427202139", "Los juegos del hambre: En llamas", "Suzanne Collins", 2009)
+    principito = b.crear_libro("9788498381498", "El principito", "Antoine de Saint-Exupéry", 1943)
+    got = b.crear_libro("9788496208490", "Game of Thrones", "George R. R. Martin", 1996)
+    sawyer = b.crear_libro("9788491050278", "Las aventuras de Tom Sawyer", "Mark Twain", 1876)
+    caspian = b.crear_libro("9788408054283", "Narnia: El príncipe Caspian", "C. S. Lewis", 1951)
+    silla = b.crear_libro("9788408054290", "Narnia: La silla de plata", "C. S. Lewis", 1953)
 
-    # 4. Ejemplares físicos distribuidos en las 3 sedes
-    e_cen_1 = b.crear_ejemplar("CEN-001", objetos, centro)
-    e_cen_2 = b.crear_ejemplar("CEN-002", objetos, centro)
-    e_cen_3 = b.crear_ejemplar("CEN-003", archivo, centro)
-    e_cen_4 = b.crear_ejemplar("CEN-004", arquitectura, centro)
-    b.crear_ejemplar("CEN-005", patrones, centro, condicion="DANADO")
-    e_cen_6 = b.crear_ejemplar("CEN-006", relacionales, centro)
-    e_nor_1 = b.crear_ejemplar("NOR-014", datos, norte)
-    b.crear_ejemplar("NOR-015", archivo, norte)
-    e_nor_3 = b.crear_ejemplar("NOR-016", relacionales, norte)
-    e_nor_4 = b.crear_ejemplar("NOR-017", arquitectura, norte)
-    e_nor_5 = b.crear_ejemplar("NOR-018", requerimientos, norte)
-    e_sur_1 = b.crear_ejemplar("SUR-008", redes, sur)
-    e_sur_2 = b.crear_ejemplar("SUR-009", archivo, sur)
-    e_sur_3 = b.crear_ejemplar("SUR-010", patrones, sur)
-    b.crear_ejemplar("SUR-011", objetos, sur)
+    # 4. Ejemplares físicos: 2 por libro, con códigos secuenciales por sede
+    e_cen_1 = b.crear_ejemplar("CEN-001", hp1, centro)
+    b.crear_ejemplar("CEN-002", hp1, centro)
+    b.crear_ejemplar("CEN-003", hp2, centro)
+    e_cen_4 = b.crear_ejemplar("CEN-004", principito, centro)
+    b.crear_ejemplar("CEN-005", principito, centro)
+    e_cen_6 = b.crear_ejemplar("CEN-006", got, centro)
+    b.crear_ejemplar("CEN-007", caspian, centro)
+    b.crear_ejemplar("CEN-008", hambre1, centro)
+
+    e_nor_1 = b.crear_ejemplar("NOR-001", hp2, norte)
+    e_nor_2 = b.crear_ejemplar("NOR-002", hp3, norte)
+    b.crear_ejemplar("NOR-003", hp3, norte)
+    b.crear_ejemplar("NOR-004", hambre2, norte)
+    e_nor_5 = b.crear_ejemplar("NOR-005", sawyer, norte)
+    e_nor_6 = b.crear_ejemplar("NOR-006", silla, norte)
+
+    e_sur_1 = b.crear_ejemplar("SUR-001", hambre1, sur)
+    b.crear_ejemplar("SUR-002", hambre2, sur)
+    b.crear_ejemplar("SUR-003", got, sur)
+    e_sur_4 = b.crear_ejemplar("SUR-004", sawyer, sur)
+    e_sur_5 = b.crear_ejemplar("SUR-005", caspian, sur)
+    b.crear_ejemplar("SUR-006", silla, sur)
 
     # 5. Préstamos históricos ya devueltos (para historial, multas y estadísticas)
-    # 5a. Préstamo devuelto con atraso -> genera Multa PENDIENTE (Martín queda inhabilitado)
-    p_multa_pend = b.solicitar_prestamo(martin, e_cen_4, centro, centro, plazo_dias=3, fecha=t_inicio)
+    # 5a. Préstamo devuelto con atraso -> genera Multa PENDIENTE (Pedro queda inhabilitado)
+    p_multa_pend = b.solicitar_prestamo(pedro, e_cen_6, centro, centro, plazo_dias=3, fecha=t_inicio)
     b.entregar_prestamo(p_multa_pend, plazo_dias=3, fecha=t_inicio + timedelta(hours=1))
     b.devolver_prestamo(p_multa_pend, "BUENO", fecha=t_inicio + timedelta(days=6))
 
-    # 5b. Préstamo devuelto con atraso -> genera Multa y Valentina ya la abona (PAGADA)
-    p_multa_pagada = b.solicitar_prestamo(valentina, e_sur_3, sur, sur, plazo_dias=2, fecha=t_inicio + timedelta(days=1))
+    # 5b. Préstamo devuelto con atraso -> genera Multa e Ignacio ya la abona (PAGADA)
+    p_multa_pagada = b.solicitar_prestamo(ignacio, e_sur_4, sur, sur, plazo_dias=2, fecha=t_inicio + timedelta(days=1))
     b.entregar_prestamo(p_multa_pagada, plazo_dias=2, fecha=t_inicio + timedelta(days=1, hours=1))
     b.devolver_prestamo(p_multa_pagada, "BUENO", fecha=t_inicio + timedelta(days=5))
-    multa_val_id = max(m["id"] for m in b.listar("multas"))
-    b.pagar_multa(multa_val_id, fecha=t_inicio + timedelta(days=5, hours=2))
+    multa_pagada_id = max(m["id"] for m in b.listar("multas"))
+    b.pagar_multa(multa_pagada_id, fecha=t_inicio + timedelta(days=5, hours=2))
 
     # 5c. Préstamo devuelto con ejemplar DAÑADO -> queda EN_REVISION en Catálogo
-    p_danado = b.solicitar_prestamo(camila, e_nor_5, norte, norte, plazo_dias=7, fecha=t_inicio + timedelta(days=2))
+    p_danado = b.solicitar_prestamo(francisco, e_nor_5, norte, norte, plazo_dias=7, fecha=t_inicio + timedelta(days=2))
     b.entregar_prestamo(p_danado, plazo_dias=7, fecha=t_inicio + timedelta(days=2, hours=1))
     b.devolver_prestamo(p_danado, "DANADO", fecha=t_inicio + timedelta(days=4))
 
     # 5d. Préstamo interbibliotecario completo (ida + entrega + devolución + regreso recibido)
-    p_inter_hist = b.solicitar_prestamo(nicolas, e_sur_2, sur, norte, plazo_dias=5, fecha=t_inicio + timedelta(days=1))
+    p_inter_hist = b.solicitar_prestamo(jeremias, e_sur_5, sur, norte, plazo_dias=5, fecha=t_inicio + timedelta(days=1))
     rem_ida_hist = b.listar("remitos")[-1]["id"]
     b.avanzar_remito(rem_ida_hist, "EMPAQUETADO", fecha=t_inicio + timedelta(days=1, hours=1), detalle="Empaque protegido")
     b.avanzar_remito(rem_ida_hist, "DESPACHADO", fecha=t_inicio + timedelta(days=1, hours=2), detalle="Despacho hacia Sede Norte")
@@ -94,42 +100,42 @@ def poblar(ruta: str | Path = "demo_biblioteca.db", reset: bool = True) -> Bibli
     # 6. Préstamos actualmente en circulación
     t = ahora - timedelta(days=5)
 
-    # 6a. Préstamo local ACTIVO en término (Ana Ledesma)
-    local_ana = b.solicitar_prestamo(ana, e_cen_1, centro, centro, plazo_dias=14, fecha=t)
-    b.entregar_prestamo(local_ana, plazo_dias=14, fecha=t + timedelta(hours=1))
+    # 6a. Préstamo local ACTIVO en término (Martín Boiero)
+    local_martin = b.solicitar_prestamo(martin, e_cen_1, centro, centro, plazo_dias=14, fecha=t)
+    b.entregar_prestamo(local_martin, plazo_dias=14, fecha=t + timedelta(hours=1))
 
-    # 6b. Préstamo local ACTIVO VENCIDO (Sofía Aguirre -> aparece en reporte de vencidos)
+    # 6b. Préstamo local ACTIVO VENCIDO (Francisco González -> aparece en reporte de vencidos)
     t_vencido = ahora - timedelta(days=3)
-    prestamo_vencido = b.solicitar_prestamo(sofia, e_cen_3, centro, centro, plazo_dias=1, fecha=t_vencido)
+    prestamo_vencido = b.solicitar_prestamo(francisco, e_cen_4, centro, centro, plazo_dias=1, fecha=t_vencido)
     b.entregar_prestamo(prestamo_vencido, plazo_dias=1, fecha=t_vencido)
 
-    # 6c. Préstamo interbibliotecario EN_TRANSITO (Lucas Díaz)
-    b.solicitar_prestamo(lucas, e_nor_1, norte, centro, plazo_dias=14, fecha=t + timedelta(days=1))
+    # 6c. Préstamo interbibliotecario EN_TRANSITO (Jeremías López Ferreyra, de Norte a Central)
+    b.solicitar_prestamo(jeremias, e_nor_1, norte, centro, plazo_dias=14, fecha=t + timedelta(days=1))
     ida_transito = b.listar("remitos")[-1]["id"]
     b.avanzar_remito(ida_transito, "EMPAQUETADO", fecha=t + timedelta(days=1, hours=1), detalle="Caja sellada")
     b.avanzar_remito(ida_transito, "DESPACHADO", fecha=t + timedelta(days=1, hours=2), detalle="Sale de Sede Norte")
 
-    # 6d. Préstamo interbibliotecario ACTIVO (María Torres)
-    recibido_maria = b.solicitar_prestamo(maria, e_sur_1, sur, centro, plazo_dias=10, fecha=t + timedelta(days=2))
-    ida_maria = b.listar("remitos")[-1]["id"]
-    b.avanzar_remito(ida_maria, "EMPAQUETADO", fecha=t + timedelta(days=2, hours=1), detalle="Embalaje verificado")
-    b.avanzar_remito(ida_maria, "DESPACHADO", fecha=t + timedelta(days=2, hours=2), detalle="En camino a Central")
-    b.avanzar_remito(ida_maria, "RECIBIDO", fecha=t + timedelta(days=2, hours=5), detalle="Recibido sin observaciones")
-    b.entregar_prestamo(recibido_maria, plazo_dias=10, fecha=t + timedelta(days=2, hours=6))
+    # 6d. Préstamo interbibliotecario ACTIVO (Ignacio Cuello, de Sur a Central)
+    recibido_ignacio = b.solicitar_prestamo(ignacio, e_sur_1, sur, centro, plazo_dias=10, fecha=t + timedelta(days=2))
+    ida_ignacio = b.listar("remitos")[-1]["id"]
+    b.avanzar_remito(ida_ignacio, "EMPAQUETADO", fecha=t + timedelta(days=2, hours=1), detalle="Embalaje verificado")
+    b.avanzar_remito(ida_ignacio, "DESPACHADO", fecha=t + timedelta(days=2, hours=2), detalle="En camino a Central")
+    b.avanzar_remito(ida_ignacio, "RECIBIDO", fecha=t + timedelta(days=2, hours=5), detalle="Recibido sin observaciones")
+    b.entregar_prestamo(recibido_ignacio, plazo_dias=10, fecha=t + timedelta(days=2, hours=6))
 
-    # 6e. Préstamo interbibliotecario LISTO para entregar (Valentina Gómez, de Norte a Sur)
-    b.solicitar_prestamo(valentina, e_nor_4, norte, sur, plazo_dias=7, fecha=t + timedelta(days=3))
+    # 6e. Préstamo interbibliotecario LISTO para entregar (Martín Boiero, de Norte a Sur)
+    b.solicitar_prestamo(martin, e_nor_2, norte, sur, plazo_dias=7, fecha=t + timedelta(days=3))
     ida_listo = b.listar("remitos")[-1]["id"]
     b.avanzar_remito(ida_listo, "EMPAQUETADO", fecha=t + timedelta(days=3, hours=1), detalle="Bolsa precintada")
     b.avanzar_remito(ida_listo, "DESPACHADO", fecha=t + timedelta(days=3, hours=2), detalle="Sale de Sede Norte")
     b.avanzar_remito(ida_listo, "RECIBIDO", fecha=t + timedelta(days=3, hours=4), detalle="Disponible en mostrador de Sede Sur")
 
-    # 6f. Préstamo local SOLICITADO pendiente de entrega (Nicolás Ferreyra)
-    b.solicitar_prestamo(nicolas, e_nor_3, norte, norte, plazo_dias=14, fecha=ahora - timedelta(hours=3))
+    # 6f. Préstamo local SOLICITADO pendiente de entrega (Jeremías López Ferreyra)
+    b.solicitar_prestamo(jeremias, e_nor_6, norte, norte, plazo_dias=14, fecha=ahora - timedelta(hours=3))
 
     # 7. Reservas (una ASIGNADA sobre CEN-002 en Central y una EN_ESPERA en Norte)
-    b.reservar(lucas, objetos, centro, fecha=t + timedelta(days=3))
-    b.reservar(camila, datos, norte, fecha=t + timedelta(days=4))
+    b.reservar(francisco, hp1, centro, fecha=t + timedelta(days=3))
+    b.reservar(ignacio, hp2, norte, fecha=t + timedelta(days=4))
 
     return b
 

@@ -19,7 +19,7 @@ class EventoRemitoDAO:
         return int(cursor.lastrowid)
 
     def actualizar(self, remito_id: int, estado: str, fecha: str, detalle: str) -> None:
-        """Implementación de ObservadorRemito para persistir cada transición."""
+        """Implementacio de ObservadorRemito para persistir cada transición."""
         self.registrar(EventoRemito(remito_id=remito_id, estado=estado, fecha=fecha, detalle=detalle))
 
     def obtener_ultimo_por_remito(self, remito_id: int) -> EventoRemito | None:
