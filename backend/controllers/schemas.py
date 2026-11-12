@@ -1,4 +1,4 @@
-"""Esquemas Pydantic para validar la estructura de los datos recibidos en los Controllers."""
+"""Esquemas Pydantic para validar la estructura de los datos recibidos en los Controllers. (DTO)"""
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -78,3 +78,4 @@ class DevolucionPrestamoRequest(ModeloEntrada):
 class RemitoAvanzarRequest(ModeloEntrada):
     estado: str = Field(..., min_length=1)
     detalle: str = Field(default="")
+

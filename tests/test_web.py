@@ -177,3 +177,4 @@ class TestWebControllers(TestCase):
         res_libro = self.client.delete(f"/api/libros/{libro_vacio}")
         self.assertEqual(res_libro.status_code, 200)
         self.assertEqual(res_libro.json()["resultado"], "eliminado")
+

@@ -10,11 +10,14 @@ function obtenerVistaInicial() {
 }
 
 function App() {
+  const [rol, setRol] = useState(null);
   const [vista, setVista] = useState(obtenerVistaInicial);
   const [estado, setEstado] = useState(null);
   const [errorCarga, setErrorCarga] = useState('');
   const [dialogo, setDialogo] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const esAdmin = rol === 'ADMIN';
 
   const loadControllerRef = useRef(null);
   const toastTimerRef = useRef(null);
@@ -60,6 +63,11 @@ function App() {
   useEffect(() => {
     refresh();
   }, []);
+
+  function salirDeSesion() {
+    setRol(null);
+    setDialogo(null);
+  }
 
   function navegar(nuevaVista) {
     const url = new URL(window.location.href);
@@ -594,6 +602,10 @@ function App() {
       );
     }
 
+    if (!esAdmin) {
+      return <DashboardUsuario tablas={estado.tablas} nameOf={nameOf} />;
+    }
+
     const propsComunes = {
       tablas: estado.tablas,
       reportes: estado.reportes,
@@ -626,6 +638,14 @@ function App() {
     }
   }
 
+  if (!rol) {
+    return <VistaLogin onSeleccionarRol={nuevoRol => setRol(nuevoRol)} />;
+  }
+
+  const itemsNavegacion = esAdmin
+    ? NAV_ITEMS
+    : [{ key: 'catalogo', label: 'Catálogo disponible', symbol: '▤' }];
+
   return (
     <>
       <div className="app-shell" id="app-shell">
@@ -647,15 +667,15 @@ function App() {
           </div>
 
           <nav className="navigation" id="navigation" aria-label="Áreas del sistema">
-            {NAV_ITEMS.map(item => (
+            {itemsNavegacion.map(item => (
               <a
                 key={item.key}
                 href={`?vista=${item.key}`}
                 data-view={item.key}
-                aria-current={vista === item.key ? 'page' : undefined}
+                aria-current={!esAdmin || vista === item.key ? 'page' : undefined}
                 onClick={e => {
                   e.preventDefault();
-                  navegar(item.key);
+                  if (esAdmin) navegar(item.key);
                 }}
               >
                 <span className="nav-symbol">{item.symbol}</span> {item.label}
@@ -676,12 +696,21 @@ function App() {
         <div className="workspace">
           <header className="topbar">
             <span className="topbar-kicker">DAO · Trabajo práctico integrador · Grupo N°34</span>
-            <span className="topbar-base" id="base-label" aria-label="Base de datos activa">
-              {estado ? (estado.base?.demo ? 'Base de muestra' : 'Base principal') : ''}
-            </span>
-            <span className="topbar-date" id="today">
-              {fechaHoy}
-            </span>
+            <div className="topbar-right">
+              <span className="topbar-base" id="base-label" aria-label="Rol activo">
+                {esAdmin ? 'Panel Administrador' : 'Vista Usuario'}
+              </span>
+              <span className="topbar-date" id="today">
+                {fechaHoy}
+              </span>
+              <button
+                type="button"
+                className="button button-outline button-small"
+                onClick={salirDeSesion}
+              >
+                Cerrar sesión
+              </button>
+            </div>
           </header>
 
           <main id="main" tabIndex="-1" aria-live="off">
