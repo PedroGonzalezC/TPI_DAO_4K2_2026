@@ -382,6 +382,18 @@ Un préstamo local pasa `SOLICITADO → ACTIVO → DEVUELTO`. Uno interbibliotec
 
 Estados del ejemplar: `DISPONIBLE`, `APARTADO`, `RESERVADO`, `PRESTADO`, `EN_TRANSITO`, `POR_RETORNAR`, `EN_REVISION`, `BAJA`. La sede actual representa la última ubicación física confirmada; mientras viaja, el remito indica su trayecto.
 
+### Catálogo de estados por entidad
+
+| Entidad / Clase | Estados posibles | Descripción y transición |
+|---|---|---|
+| **Remito** (`Remito`) | `CREADO`<br>`EMPAQUETADO`<br>`DESPACHADO`<br>`RECIBIDO` | • `CREADO`: Emitido al solicitar un préstamo interbibliotecario o iniciar un retorno.<br>• `EMPAQUETADO`: Preparado y embalado en la sede de origen.<br>• `DESPACHADO`: En viaje hacia la sede de destino (ejemplar y préstamo pasan a tránsito).<br>• `RECIBIDO`: Arribó a destino (ejemplar apartado para retiro o reintegrado a origen).<br>*Tipos:* `IDA` y `REGRESO`. |
+| **Préstamo / Solicitud** (`Prestamo`) | `SOLICITADO`<br>`EN_TRANSITO`<br>`LISTO`<br>`ACTIVO`<br>`DEVUELTO`<br>`CANCELADO` | • `SOLICITADO`: Solicitud inicial pendiente de envío o entrega local.<br>• `EN_TRANSITO`: Exclusivo interbibliotecario; remito de ida despachado.<br>• `LISTO`: Arribó a la sede de retiro; listo para entrega en mostrador.<br>• `ACTIVO`: Entregado al socio; corre el plazo de vencimiento (`plazo_dias`).<br>• `DEVUELTO`: Socio entregó el material; se liquidan atrasos y multas si aplican.<br>• `CANCELADO`: Solicitud anulada antes de la entrega; libera el ejemplar.<br>*Tipos:* `LOCAL` e `INTERBIBLIOTECARIO`. |
+| **Ejemplar** (`Ejemplar`) | `DISPONIBLE`<br>`APARTADO`<br>`RESERVADO`<br>`PRESTADO`<br>`EN_TRANSITO`<br>`POR_RETORNAR`<br>`EN_REVISION`<br>`BAJA` | • `DISPONIBLE`: En estantería libre para préstamo o reserva.<br>• `APARTADO`: Separado en sede para un préstamo listo o solicitud en curso.<br>• `RESERVADO`: Asignado a un socio con reserva vigente en la sede.<br>• `PRESTADO`: En posesión de un socio.<br>• `EN_TRANSITO`: Viajando entre sedes en remito despachado.<br>• `POR_RETORNAR`: Devuelto en sede destino; en espera de remito de regreso.<br>• `EN_REVISION`: Devuelto dañado; en evaluación para rehabilitar o dar de baja.<br>• `BAJA`: Retirado definitivamente (destruido, extraviado o descarte).<br>*Condición física:* `BUENO`, `DANADO`, `DESTRUIDO`, `EXTRAVIADO`. |
+| **Reserva** (`Reserva`) | `EN_ESPERA`<br>`ASIGNADA`<br>`CUMPLIDA`<br>`CANCELADA` | • `EN_ESPERA`: Socio en cola; sin ejemplar libre actualmente en la sede.<br>• `ASIGNADA`: Se detectó una copia libre y quedó asignada a esta reserva.<br>• `CUMPLIDA`: El socio solicitó el préstamo del material reservado.<br>• `CANCELADA`: Reserva cancelada; libera o reasigna el ejemplar a la cola. |
+| **Multa** (`Multa`) | `PENDIENTE`<br>`PAGADA` | • `PENDIENTE`: Generada por devolución con atraso; **socio inhabilitado**.<br>• `PAGADA`: Multa cobrada; rehabilita al socio si no tiene otras deudas. |
+| **Socio** (`Socio`) | `HABILITADO` (1)<br>`INHABILITADO` (0) | • `HABILITADO`: Operativo para solicitar préstamos y reservas.<br>• `INHABILITADO`: Bloqueado automáticamente por multas impagas o baja lógica. |
+| **Sede** (`Sede`) | `ACTIVA` (1)<br>`INACTIVA / BAJA` (0) | • `ACTIVA`: Operativa para atención, préstamos y despacho de remitos.<br>• `INACTIVA`: Dada de baja lógica; no admite nuevas operaciones. |
+
 ## Reglas de negocio y decisiones explícitas
 
 | Regla | Aplicación |
